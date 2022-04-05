@@ -26,12 +26,13 @@ package parse
 This is a greatly simplified and stripped down version of the core Lexer code that many of my parsers used for years.
 */
 
+import "io"
 import "strings"
 import "unicode"
 
 // CharReader is a simple way to read from a string character by character, with line info and lookahead.
 type CharReader struct {
-	source *strings.Reader
+	source io.RuneReader
 
 	// The current character
 	L   int  // Line
@@ -44,11 +45,16 @@ type CharReader struct {
 	NEOF bool // true if current NC and NL are invalid, will be at end of input with next advance
 }
 
-// Returns a new CharReader with the input preadvanced so that all fields are valid.
+// NewCharReader returns a new CharReader with the input preadvanced so that all fields are valid.
 func NewCharReader(source string, line int) *CharReader {
+	return NewRawCharReader(strings.NewReader(source), line)
+}
+
+// NewRawCharReader returns a new CharReader with the input preadvanced so that all fields are valid.
+func NewRawCharReader(source io.RuneReader, line int) *CharReader {
 	cr := new(CharReader)
 
-	cr.source = strings.NewReader(source)
+	cr.source = source
 
 	cr.L = line
 	cr.NL = line

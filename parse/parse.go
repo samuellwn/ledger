@@ -37,8 +37,10 @@ The entire file is made up of these four types of entry.
 */
 
 func ParseLedger(input string) ([]*ledger.Transaction, error) {
-	cr := NewCharReader(input, 1)
+	return ParseLedgerRaw(NewCharReader(input, 1))
+}
 
+func ParseLedgerRaw(cr *CharReader) ([]*ledger.Transaction, error) {
 	rtn := []*ledger.Transaction{}
 	for !cr.EOF {
 		// Eat any leading white space, also lines that are blank.

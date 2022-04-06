@@ -36,10 +36,12 @@ The entire file is made up of these four types of entry.
 
 */
 
+// ParseLedger parses a ledger file from a string into a list of Transactions.
 func ParseLedger(input string) ([]*ledger.Transaction, error) {
 	return ParseLedgerRaw(NewCharReader(input, 1))
 }
 
+// ParseLedgerRaw parses a ledger file from a CharReader into a list of Transactions.
 func ParseLedgerRaw(cr *CharReader) ([]*ledger.Transaction, error) {
 	rtn := []*ledger.Transaction{}
 	for !cr.EOF {
@@ -442,6 +444,8 @@ func ParseLedgerRaw(cr *CharReader) ([]*ledger.Transaction, error) {
 	return rtn, nil
 }
 
+// ReadUntilTrimmed reads characters from the CharReader until one of the characters in `chars` is found.
+// The result then has all the whitespace trimmed from the ends.
 func ReadUntilTrimmed(cr *CharReader, chars string) (string, error) {
 	ln := []rune{}
 	ln = cr.ReadUntil(chars, ln)
@@ -465,6 +469,7 @@ func ReadUntilTrimmed(cr *CharReader, chars string) (string, error) {
 	return string(ln), nil
 }
 
+// ParseDate reads a date (in yyyy/mm/dd format) from the CharReader.
 func ParseDate(cr *CharReader) (*time.Time, error) {
 	date := []rune{}
 	ok := false

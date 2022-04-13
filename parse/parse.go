@@ -297,7 +297,7 @@ func ParseLedgerRaw(cr *CharReader) ([]*ledger.Transaction, error) {
 			}
 
 			// Otherwise must be a actual posting
-			post := &ledger.Posting{}
+			post := ledger.Posting{}
 
 			// The optional cleared indicator, TBH I didn't even know this was a thing until I looked at the spec.
 			if cr.C == '*' {
@@ -470,49 +470,46 @@ func ReadUntilTrimmed(cr *CharReader, chars string) (string, error) {
 }
 
 // ParseDate reads a date (in yyyy/mm/dd format) from the CharReader.
-func ParseDate(cr *CharReader) (*time.Time, error) {
+func ParseDate(cr *CharReader) (time.Time, error) {
 	date := []rune{}
 	ok := false
+	var t time.Time
 
 	ok, date = cr.ReadMatchLimit("0123456789", date, 4)
 	if !ok {
-		return nil, ErrBadDate(cr.L)
+		return t, ErrBadDate(cr.L)
 	}
 	if cr.EOF {
-		return nil, ErrUnexpectedEnd(cr.L)
+		return t, ErrUnexpectedEnd(cr.L)
 	}
 
 	if !cr.Match("/-.") {
-		return nil, ErrBadDate(cr.L)
+		return t, ErrBadDate(cr.L)
 	}
 	date = append(date, '/')
 	cr.Next()
 
 	ok, date = cr.ReadMatchLimit("0123456789", date, 2)
 	if !ok {
-		return nil, ErrBadDate(cr.L)
+		return t, ErrBadDate(cr.L)
 	}
 	if cr.EOF {
-		return nil, ErrUnexpectedEnd(cr.L)
+		return t, ErrUnexpectedEnd(cr.L)
 	}
 
 	if !cr.Match("/-.") {
-		return nil, ErrBadDate(cr.L)
+		return t, ErrBadDate(cr.L)
 	}
 	date = append(date, '/')
 	cr.Next()
 
 	ok, date = cr.ReadMatchLimit("0123456789", date, 2)
 	if !ok {
-		return nil, ErrBadDate(cr.L)
+		return t, ErrBadDate(cr.L)
 	}
 	if cr.EOF {
-		return nil, ErrUnexpectedEnd(cr.L)
+		return t, ErrUnexpectedEnd(cr.L)
 	}
 
-	t, err := time.Parse("2006/01/02", string(date))
-	if err != nil {
-		return nil, err
-	}
-	return &t, nil
+	return time.Parse("2006/01/02", string(date))
 }

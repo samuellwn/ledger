@@ -37,12 +37,14 @@ package ledger
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 type status int
@@ -56,13 +58,13 @@ const (
 
 // Transaction is a single transaction from a ledger file.
 type Transaction struct {
-	Date        *time.Time // 2020/10/10
-	ClearDate   *time.Time // =2020/10/10 (optional)
-	Status      status     //   | ! | * (optional)
-	Code        string     // ( Stuff ) (optional)
-	Description string     // Spent monie on stuf
+	Date        time.Time // 2020/10/10
+	ClearDate   time.Time // =2020/10/10 (optional)
+	Status      status    //   | ! | * (optional)
+	Code        string    // ( Stuff ) (optional)
+	Description string    // Spent monie on stuf
 
-	Postings []*Posting
+	Postings []Posting
 
 	Comments []string // ; Stuff...
 
@@ -81,21 +83,14 @@ type Posting struct {
 	Note    string // ; Stuff
 }
 
-// CopyForEdit takes a perfect copy of the transaction object, safe for editing without making any changes to the parent.
-func (t *Transaction) CopyForEdit() *Transaction {
-	// This is a terrible hack, but it absolutely 100% ensures that the new object has no connection to the old one
-	// with no chance of error and with way less work required on my part.
-	jt, err := json.Marshal(t)
-	if err != nil {
-		return nil
-	}
-
-	nt := &Transaction{}
-	if err = json.Unmarshal(jt, &nt); err != nil {
-		return nil
-	}
-
-	return nt
+// CleanCopy takes a perfect copy of the transaction object, safe for editing without making any changes to the parent.
+func (t *Transaction) CleanCopy() *Transaction {
+	nt := *t
+	nt.Postings = slices.Clone(t.Postings)
+	nt.Comments = slices.Clone(t.Comments)
+	nt.Tags = maps.Clone(t.Tags)
+	nt.KVPairs = maps.Clone(t.KVPairs)
+	return &nt
 }
 
 // Balance ensures that all postings in the transaction add up to 0 or there is a single null posting.
@@ -152,7 +147,7 @@ func (t *Transaction) Canonicalize() error {
 }
 
 // SumTransactions balances a list of transactions, and returns a map of accounts to their ending values.
-func SumTransactions(ts []*Transaction) (map[string]int64, error) {
+func SumTransactions(ts []Transaction) (map[string]int64, error) {
 	accounts := map[string]int64{}
 
 	for i, t := range ts {
@@ -229,7 +224,7 @@ func (t *Transaction) String() string {
 	buf := new(bytes.Buffer)
 
 	buf.WriteString(t.Date.Format("2006/01/02"))
-	if t.ClearDate != nil {
+	if !t.ClearDate.IsZero() {
 		fmt.Fprintf(buf, "=%v", t.ClearDate.Format("2006/01/02"))
 	}
 
@@ -366,14 +361,14 @@ func roundToEven(ms, ls int64) int64 {
 }
 
 // TransactionDateSorter is a helper for sorting a list of transactions by date.
-type TransactionDateSorter []*Transaction
+type TransactionDateSorter []Transaction
 
 func (tds TransactionDateSorter) Len() int {
 	return len(tds)
 }
 
 func (tds TransactionDateSorter) Less(i, j int) bool {
-	return tds[i].Date.Before(*tds[j].Date)
+	return tds[i].Date.Before(tds[j].Date)
 }
 
 func (tds TransactionDateSorter) Swap(i, j int) {

@@ -22,19 +22,21 @@ misrepresented as being the original software.
 
 package client
 
-import "encoding/json"
-import "io/ioutil"
-import "strings"
-import "errors"
-import "time"
-import "sort"
-import "fmt"
-import "os"
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"sort"
+	"strings"
+	"sync"
+	"time"
 
-import "github.com/milochristiansen/ledger"
-import "github.com/milochristiansen/ledger/parse"
-
-import "github.com/teris-io/shortid"
+	"github.com/milochristiansen/ledger"
+	"github.com/milochristiansen/ledger/parse"
+	"github.com/teris-io/shortid"
+)
 
 // Client does all the work of keeping a clear consistent view of the underlying transaction log for the UI.
 // This handles loading and updating the log file, parsing and sorting all the data, and doing all the other
@@ -43,16 +45,18 @@ type Client struct {
 	ledger *os.File // The current ledger file, open for appending.
 
 	// All the transactions in the ledger file, exactly as they appear and in source order.
-	raw []*ledger.Transaction
+	raw []ledger.Transaction
 
 	// The simplified transactions, all edits and such removed, in chronological order then source order
 	// for same-date transactions.
-	simple   []*ledger.Transaction
+	simple   []ledger.Transaction
 	simpleid map[string]int // ID to index map for the simplified list.
 
 	// All transactions by ID, each group is then in source order (so the last item in each list is the
 	// authoritative version).
-	byid map[string][]*ledger.Transaction
+	byid map[string][]ledger.Transaction
+
+	lock sync.RWMutex
 
 	// Events are sent on this channel.
 	Events chan *Event
@@ -72,6 +76,7 @@ type Event struct {
 }
 
 // NewClient returns a client object or an error if the client was not able to initialize.
+// Do not make multiple Clients! Each Client has associated, non-releasable resources!
 func NewClient() (*Client, error) {
 	client := &Client{
 		Events: make(chan *Event),
@@ -91,13 +96,16 @@ func NewClient() (*Client, error) {
 	}
 
 	// and parse it into the raw transaction list.
-	client.raw, err = parse.ParseLedger(string(data))
+	raw, err := parse.ParseLedger(string(data))
 	if err != nil {
 		return nil, err
 	}
+	for _, r := range raw {
+		client.raw = append(client.raw, *r)
+	}
 
 	// Now we need to transform the raw transaction list into the various filtered lists.
-	client.byid = map[string][]*ledger.Transaction{}
+	client.byid = map[string][]ledger.Transaction{}
 	client.simpleid = map[string]int{}
 	for _, tr := range client.raw {
 		if tr.Code == "" {
@@ -144,12 +152,16 @@ func init() {
 
 // AddTransaction writes a transaction to the log and adds it to the internal lists.
 // The transaction object passed in will be modified to have an ID in the Code field.
-func (client *Client) AddTransaction(tr *ledger.Transaction) error {
+func (client *Client) AddTransaction(tr ledger.Transaction) error {
 	// Before we do anything, make sure the transaction is well formed.
 	err := tr.Canonicalize()
 	if err != nil {
 		return err
 	}
+
+	// Grab the write lock.
+	client.lock.Lock()
+	defer client.lock.Unlock()
 
 	// Now that we have ruled out a malformed transaction, give the transaction an ID.
 	// We should never ever need it, but just in case we make sure there are no collisions.
@@ -167,19 +179,23 @@ func (client *Client) AddTransaction(tr *ledger.Transaction) error {
 	// Ok, the error conditions are out of the way, pollute our internal state.
 	client.simpleid[tr.Code] = len(client.simple)
 	client.simple = append(client.simple, tr)
-	client.byid[tr.Code] = []*ledger.Transaction{tr}
+	client.byid[tr.Code] = []ledger.Transaction{tr}
 	client.Events <- &Event{Typ: EvntTypTrUpdate}
 	return nil
 }
 
 // AddTransactionEdit does the same basic thing as AddTransaction, except it ensures that the transaction
 // being added replaces an existing one.
-func (client *Client) AddTransactionEdit(tr *ledger.Transaction) error {
+func (client *Client) AddTransactionEdit(tr ledger.Transaction) error {
 	// Before we do anything, make sure the transaction is well formed.
 	err := tr.Canonicalize()
 	if err != nil {
 		return err
 	}
+
+	// Grab the write lock.
+	client.lock.Lock()
+	defer client.lock.Unlock()
 
 	// And make sure it has at least one parent.
 	_, ok := client.simpleid[tr.Code]
@@ -202,6 +218,10 @@ func (client *Client) AddTransactionEdit(tr *ledger.Transaction) error {
 
 // GetAccountList returns a sorted list of accounts.
 func (client *Client) GetAccountList() []string {
+	// Grab the read lock.
+	client.lock.RLock()
+	defer client.lock.RUnlock()
+
 	accounts := map[string]bool{}
 	for _, tr := range client.simple {
 		for _, post := range tr.Postings {
@@ -237,6 +257,10 @@ const (
 // Each element in the slice is a display row consisting of two items, the name of the row with pre-applied
 // indentation as needed and the pre-formatted value for the row.
 func (client *Client) GetBalances(dfilter int) ([][]string, error) {
+	// Grab the read lock.
+	client.lock.RLock()
+	defer client.lock.RUnlock()
+
 	trs := client.GetTransactions(dfilter, FilterAllStatus, nil)
 
 	accounts, err := ledger.SumTransactions(trs)
@@ -248,9 +272,13 @@ func (client *Client) GetBalances(dfilter int) ([][]string, error) {
 
 // GetTransactions returns the simplified transaction list (all edits resolved, etc), sorted by date and
 // then source order. This list is further filtered by a time period, status, and tags.
-func (client *Client) GetTransactions(dfilter int, sfilter int, tfilter map[string]bool) []*ledger.Transaction {
+func (client *Client) GetTransactions(dfilter int, sfilter int, tfilter map[string]bool) []ledger.Transaction {
+	// Grab the read lock.
+	client.lock.RLock()
+	defer client.lock.RUnlock()
+
 	today := time.Now()
-	trs := []*ledger.Transaction{}
+	trs := []ledger.Transaction{}
 	for _, tr := range client.simple {
 		switch dfilter {
 		case FilterThisMonth:
@@ -276,7 +304,7 @@ func (client *Client) GetTransactions(dfilter int, sfilter int, tfilter map[stri
 	return trs
 }
 
-func stateFilterNode(trs []*ledger.Transaction, tr *ledger.Transaction, sfilter int, tfilter map[string]bool) []*ledger.Transaction {
+func stateFilterNode(trs []ledger.Transaction, tr ledger.Transaction, sfilter int, tfilter map[string]bool) []ledger.Transaction {
 	switch sfilter {
 	case FilterClearStatus:
 		if tr.Status == ledger.StatusClear {
@@ -292,24 +320,33 @@ func stateFilterNode(trs []*ledger.Transaction, tr *ledger.Transaction, sfilter 
 	return trs
 }
 
-func tagFilterNode(trs []*ledger.Transaction, tr *ledger.Transaction, tfilter map[string]bool) []*ledger.Transaction {
+func tagFilterNode(trs []ledger.Transaction, tr ledger.Transaction, tfilter map[string]bool) []ledger.Transaction {
 	if tfilter == nil || len(tfilter) == 0 {
 		return append(trs, tr)
 	}
 
 	for t := range tr.Tags {
 		if tfilter[t] {
-			return append(trs, tr)
+			return append(trs, *tr.CleanCopy())
 		}
 	}
 	return trs
 }
 
 // GetTransactionWithHistory returns all existing versions of a transaction in source order. The last
-// transaction in the list is the one currently in effect. Do not edit this list!
+// transaction in the list is the one currently in effect.
 // In case of a non-existent ID, nil is returned.
-func (client *Client) GetTransactionWithHistory(id string) []*ledger.Transaction {
-	return client.byid[id]
+func (client *Client) GetTransactionWithHistory(id string) []ledger.Transaction {
+	// Grab the read lock.
+	client.lock.RLock()
+	defer client.lock.RUnlock()
+
+	// Make a perfectly clean copy.
+	trs := []ledger.Transaction{}
+	for _, tr := range client.byid[id] {
+		trs = append(trs, *tr.CleanCopy())
+	}
+	return trs
 }
 
 var attachmentIDService <-chan string
@@ -332,11 +369,19 @@ func (client *Client) AddAttachment(id string, path string) error {
 	// Grab an id for this attachment
 	aid := <-attachmentIDService
 
+	client.lock.RLock()
+
 	// Get the transaction.
 	trs, ok := client.byid[id]
 	if !ok {
+		client.lock.RUnlock()
 		return errors.New("Transaction not found.")
 	}
+
+	// Get a clean copy of the transaction, ready to edit.
+	tr := *trs[len(trs)-1].CleanCopy()
+
+	client.lock.RUnlock()
 
 	// Open the file for reading.
 	file, err := os.Open(path)
@@ -362,9 +407,6 @@ func (client *Client) AddAttachment(id string, path string) error {
 
 	// And do the copying.
 	nfile.ReadFrom(file)
-
-	// Get a clean copy of the transaction, ready to edit.
-	tr := trs[len(trs)-1].CopyForEdit()
 
 	// Edit the transaction to include the attachment
 	srawats, ok := tr.KVPairs["Attachments"]

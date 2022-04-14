@@ -82,9 +82,8 @@ func main() {
 	trs := []ledger.Transaction{}
 
 	// First, zoom through the master file until we find the sync point.
-	syncPoint := 0
-	for ; syncPoint < len(f1trs); syncPoint++ {
-		trs = append(trs, f1trs[syncPoint])
+	syncPoint := len(f1trs)-1
+	for ; syncPoint >= 0; syncPoint-- {
 		if f1trs[syncPoint].Code == f2trs[0].Code {
 			break
 		}
@@ -94,9 +93,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Now zipper the files together from the sync point
-	
+	// Add transactions from the master up to the sync point
+	for i := 0; i <= syncPoint; i++ {
+		trs = append(trs, f1trs[i])
+	}
+
+	// Now continue adding files from the master up until the last transaction that matches.
 	i1, i2 := syncPoint+1, 1
+	for i1 < len(f1trs) || i2 < len(f2trs) {
+		if f1trs[i1].Code != f2trs[i2].Code {
+			break
+		}
+		trs = append(trs, f1trs[i1])
+		i1++
+		i2++
+	}
+
+	// Now zipper the differences together from the sync point
 	for i1 < len(f1trs) || i2 < len(f2trs) {
 		// If only one side is left, just append it and bail.
 		if i1 >= len(f1trs) {

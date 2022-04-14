@@ -36,18 +36,21 @@ var ErrImproperInterleave = errors.New("Ledger file transaction and directive li
 // "FoundBefore" values in the directives. drs must be ordered so that the FoundBefore values are ascending.
 func WriteLedgerFile(w io.Writer, trs []Transaction, drs []Directive) error {
 	ctr, cdr := 0, 0
-	for ctr < len(trs) && cdr < len(drs) {
-		if drs[cdr].FoundBefore == ctr {
-			fmt.Fprintln(w, drs[cdr])
+	for ctr < len(trs) || cdr < len(drs) {
+		// If we have remaining directives and the next directive goes before the current transaction
+		if cdr < len(drs) && drs[cdr].FoundBefore == ctr {
+			fmt.Fprintf(w, "\n%v", drs[cdr].String())
 			cdr++
 			continue
 		}
 
+		// If we have remaining directives and we are out of transactions
 		if ctr >= len(trs) {
 			return ErrImproperInterleave
 		}
 
-		fmt.Fprintln(w, drs[cdr])
+		// Write next transaction
+		fmt.Fprintf(w, "\n%v", trs[ctr].String())
 		ctr++
 	}
 	return nil

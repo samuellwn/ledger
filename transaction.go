@@ -260,7 +260,7 @@ func (t *Transaction) String() string {
 	}
 
 	for _, p := range t.Postings {
-		fmt.Fprintf(buf, "\t%v\n", p)
+		fmt.Fprintf(buf, "\t%v\n", p.String())
 	}
 
 	return buf.String()

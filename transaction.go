@@ -377,6 +377,7 @@ func (tds TransactionDateSorter) Swap(i, j int) {
 
 // Error types
 
+// BalanceError is returned by functions that validate transactions in some way when the transaction isn't balanced.
 type BalanceError [2]int
 
 func (err BalanceError) Error() string {
@@ -386,6 +387,8 @@ func (err BalanceError) Error() string {
 	return fmt.Sprintf("Transaction %v (defined on line %v) does not balance.", err[0], err[1])
 }
 
+// MultipleNullError is returned by functions that validate transactions in some way when the transaction has more
+// than one null posting.
 type MultipleNullError [2]int
 
 func (err MultipleNullError) Error() string {

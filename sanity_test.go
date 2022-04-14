@@ -22,12 +22,17 @@ misrepresented as being the original software.
 
 package ledger_test
 
-import "testing"
+import (
+	"testing"
 
-import "github.com/milochristiansen/ledger"
-import "github.com/milochristiansen/ledger/parse"
+	"github.com/milochristiansen/ledger"
+	"github.com/milochristiansen/ledger/parse"
+)
 
 var TestBasicFunctionInput = `
+account Expenses:Food
+	note Test Account
+
 2012-03-10 * TesT
 	; Example
 	; :Tag1:Tag2:
@@ -39,9 +44,31 @@ var TestBasicFunctionInput = `
 // This is a simple sanity check that makes sure the base features are functional under normal conditions.
 // I do not test nearly every case here, this is just to catch major errors.
 func TestBasicFunction(t *testing.T) {
-	transactions, err := parse.ParseLedger(TestBasicFunctionInput)
+	transactions, directives, err := parse.ParseLedgerRaw(parse.NewCharReader(TestBasicFunctionInput, 33))
 	if err != nil {
 		t.Error(err)
+	}
+
+	if len(directives) != 1 {
+		t.Fatalf("Incorrect number of directives: %v", len(directives))
+	}
+
+	dr := directives[0]
+
+	if dr.Type != "account" {
+		t.Errorf("Incorrect directive type: %v", dr.Type)
+	}
+
+	if dr.Argument != "Expenses:Food" {
+		t.Errorf("Incorrect directive argument: %v", dr.Argument)
+	}
+
+	if len(dr.Lines) != 1 {
+		t.Fatalf("Incorrect number of directive lines: %v", len(dr.Lines))
+	}
+
+	if dr.Lines[0] != "note Test Account" {
+		t.Errorf("Incorrect directive line: %v", dr.Lines[0])
 	}
 
 	if len(transactions) != 1 {

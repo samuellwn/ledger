@@ -96,12 +96,9 @@ func NewClient() (*Client, error) {
 	}
 
 	// and parse it into the raw transaction list.
-	raw, err := parse.ParseLedger(string(data))
+	client.raw, err = parse.ParseLedger(string(data))
 	if err != nil {
 		return nil, err
-	}
-	for _, r := range raw {
-		client.raw = append(client.raw, *r)
 	}
 
 	// Now we need to transform the raw transaction list into the various filtered lists.

@@ -66,7 +66,8 @@ func main() {
 	// Merge the directives. This is painful, but I'm too lazy to figure out a better way.
 	drs := []ledger.Directive{}
 	drs = append(drs, f1drs...)
-	outer: for _, d2 := range f2drs {
+outer:
+	for _, d2 := range f2drs {
 		for _, d1 := range f1drs {
 			if d2.Compare(d1) {
 				continue outer
@@ -82,7 +83,7 @@ func main() {
 	trs := []ledger.Transaction{}
 
 	// First, zoom through the master file until we find the sync point.
-	syncPoint := len(f1trs)-1
+	syncPoint := len(f1trs) - 1
 	for ; syncPoint >= 0; syncPoint-- {
 		if f1trs[syncPoint].Code == f2trs[0].Code {
 			break
@@ -109,7 +110,7 @@ func main() {
 		i2++
 	}
 
-	// Now zipper the differences together from the sync point
+	// Now zipper the differences together from the last sync point
 	for i1 < len(f1trs) || i2 < len(f2trs) {
 		// If only one side is left, just append it and bail.
 		if i1 >= len(f1trs) {
@@ -135,7 +136,7 @@ func main() {
 			continue
 		}
 
-		// Otherwise, order them by lexical comparison of the ID
+		// Otherwise, order them by lexical comparison of the ID, just so that order is deterministic.
 		if f1trs[i1].Code < f2trs[i2].Code {
 			trs = append(trs, f1trs[i1])
 			i1++

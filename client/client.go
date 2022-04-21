@@ -200,6 +200,9 @@ func (client *Client) AddTransactionEdit(tr ledger.Transaction) error {
 		return MissingParentError
 	}
 
+	// Generate a revision ID.
+	tr.KVPairs["Revision"] = <-transactionIDService
+
 	// Next, write the new transaction to the log file.
 	_, err = fmt.Fprintf(client.ledger, "\n%v", tr)
 	if err != nil {

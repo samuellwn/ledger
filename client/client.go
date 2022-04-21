@@ -65,6 +65,7 @@ type Client struct {
 // Returned by GetClient if, during loading, a transaction is found that does not have an ID.
 // Since all transactions written by this system are given IDs this means a corrupted or badly
 // manually edited file. Go fix your mistake and try again.
+// Also used by AddTransactionEdit.
 var MissingIDError = errors.New("Transaction missing ID.")
 
 const (
@@ -105,20 +106,21 @@ func NewClient() (*Client, error) {
 	client.byid = map[string][]ledger.Transaction{}
 	client.simpleid = map[string]int{}
 	for _, tr := range client.raw {
-		if tr.Code == "" {
+		id, ok := tr.KVPairs["ID"]
+		if !ok || id == "" {
 			return nil, MissingIDError
 		}
 
-		client.byid[tr.Code] = append(client.byid[tr.Code], tr)
+		client.byid[id] = append(client.byid[id], tr)
 
 		// The last transaction with a given ID is the authoritative version of that transaction.
 		// However, "source order" of the transaction list is defined by the first version of that
 		// transaction. This makes things really simple (not intended, it just worked out that way).
-		if idx, ok := client.simpleid[tr.Code]; ok {
+		if idx, ok := client.simpleid[id]; ok {
 			client.simple[idx] = tr
 			continue
 		}
-		client.simpleid[tr.Code] = len(client.simple)
+		client.simpleid[id] = len(client.simple)
 		client.simple = append(client.simple, tr)
 	}
 
@@ -148,7 +150,7 @@ func init() {
 }
 
 // AddTransaction writes a transaction to the log and adds it to the internal lists.
-// The transaction object passed in will be modified to have an ID in the Code field.
+// The transaction object passed in will be modified to have an ID in the "ID" KV pair.
 func (client *Client) AddTransaction(tr ledger.Transaction) error {
 	// Before we do anything, make sure the transaction is well formed.
 	err := tr.Canonicalize()
@@ -162,10 +164,11 @@ func (client *Client) AddTransaction(tr ledger.Transaction) error {
 
 	// Now that we have ruled out a malformed transaction, give the transaction an ID.
 	// We should never ever need it, but just in case we make sure there are no collisions.
-	tr.Code = <-transactionIDService
-	for _, ok := client.simpleid[tr.Code]; ok; {
-		tr.Code = <-transactionIDService
+	id := <-transactionIDService
+	for _, ok := client.simpleid[id]; ok; {
+		id = <-transactionIDService
 	}
+	tr.KVPairs["ID"] = id
 
 	// Next, write the new transaction to the log file. This is the most likely step to fail somehow.
 	_, err = fmt.Fprintf(client.ledger, "\n%v", tr)
@@ -174,9 +177,9 @@ func (client *Client) AddTransaction(tr ledger.Transaction) error {
 	}
 
 	// Ok, the error conditions are out of the way, pollute our internal state.
-	client.simpleid[tr.Code] = len(client.simple)
+	client.simpleid[id] = len(client.simple)
 	client.simple = append(client.simple, tr)
-	client.byid[tr.Code] = []ledger.Transaction{tr}
+	client.byid[id] = []ledger.Transaction{tr}
 	client.Events <- &Event{Typ: EvntTypTrUpdate}
 	return nil
 }
@@ -190,18 +193,23 @@ func (client *Client) AddTransactionEdit(tr ledger.Transaction) error {
 		return err
 	}
 
+	id, ok := tr.KVPairs["ID"]
+	if !ok || id == "" {
+		return MissingIDError
+	}
+
 	// Grab the write lock.
 	client.lock.Lock()
 	defer client.lock.Unlock()
 
 	// And make sure it has at least one parent.
-	_, ok := client.simpleid[tr.Code]
+	_, ok = client.simpleid[id]
 	if !ok {
 		return MissingParentError
 	}
 
 	// Generate a revision ID.
-	tr.KVPairs["Revision"] = <-transactionIDService
+	tr.KVPairs["RID"] = <-transactionIDService
 
 	// Next, write the new transaction to the log file.
 	_, err = fmt.Fprintf(client.ledger, "\n%v", tr)
@@ -210,8 +218,8 @@ func (client *Client) AddTransactionEdit(tr ledger.Transaction) error {
 	}
 
 	// Adding an edit to the internal structures is simpler than adding a new transaction.
-	client.simple[client.simpleid[tr.Code]] = tr
-	client.byid[tr.Code] = append(client.byid[tr.Code], tr)
+	client.simple[client.simpleid[id]] = tr
+	client.byid[id] = append(client.byid[id], tr)
 	client.Events <- &Event{Typ: EvntTypTrUpdate}
 	return nil
 }

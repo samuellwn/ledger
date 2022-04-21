@@ -77,12 +77,17 @@ func main() {
 	drs := fdrs
 	if len(fdrs) > 0 {
 		j := 0
-		for ; j < len(fdrs); j-- {
+		for ; j < len(fdrs); j++ {
 			if fdrs[j].FoundBefore > i {
 				break
 			}
 		}
 		drs = fdrs[j:]
+
+		// Adjust FoundBefore values
+		for k := range drs {
+			drs[k].FoundBefore -= i
+		}
 	}
 
 

@@ -76,11 +76,13 @@ type Transaction struct {
 
 // Posting is a single line item in a Transaction.
 type Posting struct {
-	Status  status //   | ! | *  (optional)
-	Account string // Account:Name
-	Value   int64  // $20.00 (currently only supporting USD, in thousandths of a cent)
-	Null    bool   // True if the Value is implied. Value may or may not contain a valid amount.
-	Note    string // ; Stuff
+	Status    status //   | ! | *  (optional)
+	Account   string // Account:Name
+	Value     int64  // $20.00 (currently only supporting USD, in thousandths of a cent)
+	Null      bool   // True if the Value is implied. Value may or may not contain a valid amount.
+	Assert    int64  // = $20.00
+	HasAssert bool
+	Note      string // ; Stuff
 }
 
 // CleanCopy takes a perfect copy of the transaction object, safe for editing without making any changes to the parent.
@@ -292,6 +294,11 @@ func (p *Posting) String() string {
 		buf.WriteString(FormatValue(p.Value))
 	} else {
 		buf.WriteString(p.Account)
+	}
+
+	if p.HasAssert {
+		buf.WriteString(" = ")
+		buf.WriteString(FormatValue(p.Assert))
 	}
 
 	if p.Note != "" {

@@ -23,8 +23,11 @@ misrepresented as being the original software.
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/milochristiansen/ledger"
@@ -32,6 +35,12 @@ import (
 
 	"github.com/aclindsa/ofxgo"
 )
+
+type Matcher struct {
+	R       *regexp.Regexp
+	Account string
+	Payee   string
+}
 
 func main() {
 	if len(os.Args) < 4 || (len(os.Args) > 1 && (os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help")) {
@@ -41,12 +50,51 @@ func main() {
 
 	dest := os.Args[1]
 	fp := os.Args[2]
-	account := os.Args[3]
+	masterAccount := os.Args[3]
+	matchf := ""
+	if len(os.Args) > 4 {
+		matchf = os.Args[4]
+	}
 
 	fr, err := os.Open(fp)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+
+	matchers := []Matcher{}
+	if matchf != "" {
+		mr, err := os.Open(matchf)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		mrdr := csv.NewReader(mr)
+		mrdr.FieldsPerRecord = 3
+		mrdr.Comment = '#'
+
+		for {
+			line, err := mrdr.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			reg, err := regexp.Compile(line[0])
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			matchers = append(matchers, Matcher{
+				reg,
+				line[1],
+				line[2],
+			})
+		}
 	}
 
 	// Load OFX file
@@ -73,7 +121,6 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	idsource := shortid.MustNew(16, shortid.DefaultABC, uint64(time.Now().UnixNano()))
 
 	trs := []ledger.Transaction{}
@@ -84,24 +131,38 @@ func main() {
 			os.Exit(1)
 		}
 
+		account, payee := "Unknown:Account", string(str.Memo)
+		for _, matcher := range matchers {
+			if matcher.R.MatchString(payee) {
+				if matcher.Account != "" {
+					account = matcher.Account
+				}
+				if matcher.Payee != "" {
+					payee = matcher.Payee
+				}
+				break
+			}
+		}
+
 		tr := ledger.Transaction{
-			Description: string(str.Memo),
-			Date: str.DtPosted.Time,
-			Status: ledger.StatusClear,
+			Description: payee,
+			Date:        str.DtPosted.Time,
+			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID": idsource.MustGenerate(),
-				"RID": idsource.MustGenerate(),
-				"FITID": string(str.FiTID),
-				"TrnTyp": str.TrnType.String(),
+				"ID":       idsource.MustGenerate(),
+				"RID":      idsource.MustGenerate(),
+				"FITID":    string(str.FiTID),
+				"TrnTyp":   str.TrnType.String(),
+				"FullDesc": string(str.Memo),
 			},
 			Postings: []ledger.Posting{
 				{
-					Account: account,
-					Value: v,
+					Account: masterAccount,
+					Value:   v,
 				},
 				{
-					Account: "Unknown:Account",
-					Null: true,
+					Account: account,
+					Null:    true,
 				},
 			},
 		}
@@ -125,7 +186,7 @@ func main() {
 
 var usage = `Usage:
 
-  fromofx dest source account
+  fromofx dest source account [matchfile]
 
 This program takes an OFX file and converts it to a ledger file.
 `

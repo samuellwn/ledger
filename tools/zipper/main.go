@@ -1,5 +1,5 @@
 /*
-Copyright 2021 by Milo Christiansen
+Copyright 2022 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -28,7 +28,7 @@ import (
 	"os"
 
 	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
+	"github.com/milochristiansen/ledger/tools"
 )
 
 func main() {
@@ -41,27 +41,8 @@ func main() {
 	f1 := os.Args[2]
 	f2 := os.Args[3]
 
-	f1r, err := os.Open(f1)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	f1trs, f1drs, err := parse.ParseLedgerRaw(parse.NewRawCharReader(bufio.NewReader(f1r), 1))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	f2r, err := os.Open(f2)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	f2trs, f2drs, err := parse.ParseLedgerRaw(parse.NewRawCharReader(bufio.NewReader(f2r), 1))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	f1trs, f1drs := tools.LoadLedgerFile(f1)
+	f2trs, f2drs := tools.LoadLedgerFile(f2)
 
 	// Merge the directives. This is painful, but I'm too lazy to figure out a better way.
 	drs := []ledger.Directive{}

@@ -1,5 +1,5 @@
 /*
-Copyright 2021 by Milo Christiansen
+Copyright 2022 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -28,7 +28,7 @@ import (
 	"os"
 
 	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
+	"github.com/milochristiansen/ledger/tools"
 )
 
 func main() {
@@ -45,16 +45,7 @@ func main() {
 		rid = os.Args[4]
 	}
 
-	f1r, err := os.Open(fp)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	ftrs, fdrs, err := parse.ParseLedgerRaw(parse.NewRawCharReader(bufio.NewReader(f1r), 1))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	ftrs, fdrs := tools.LoadLedgerFile(fp)
 
 	// Go through the transactions *in reverse* looking for the ID (and also the revision ID if specified)
 	i := len(ftrs)-1

@@ -136,14 +136,47 @@ outer:
 			continue
 		}
 
-		// Otherwise, order them by lexical comparison of the ID, just so that order is deterministic.
-		if f1trs[i1].Code < f2trs[i2].Code {
+		// if the times are the same, try to order lexically by ID to preserve determinism.
+		dir := chooseAB(f1trs[i1].KVPairs, f2trs[i2].KVPairs, "ID")
+		if dir < 0 {
 			trs = append(trs, f1trs[i1])
 			i1++
 			continue
 		}
-		trs = append(trs, f2trs[i2])
-		i2++
+		if dir > 0 {
+			trs = append(trs, f2trs[i2])
+			i2++
+			continue
+		}
+
+		// Well, we can't order by ID for some reason. Try to order by the revision ID (only present in edits)
+		dir = chooseAB(f1trs[i1].KVPairs, f2trs[i2].KVPairs, "RID")
+		if dir < 0 {
+			trs = append(trs, f1trs[i1])
+			i1++
+			continue
+		}
+		if dir > 0 {
+			trs = append(trs, f2trs[i2])
+			i2++
+			continue
+		}
+
+		// If all else fails, try to use a financial institution ID (only present in imported data)
+		dir = chooseAB(f1trs[i1].KVPairs, f2trs[i2].KVPairs, "FITID")
+		if dir < 0 {
+			trs = append(trs, f1trs[i1])
+			i1++
+			continue
+		}
+		if dir > 0 {
+			trs = append(trs, f2trs[i2])
+			i2++
+			continue
+		}
+
+		fmt.Println("Error: Could not order some transactions. Ensure all transactions have ID and RID keys as appropriate.")
+		os.Exit(1)
 	}
 
 	out, err := os.Create(dest)
@@ -160,6 +193,36 @@ outer:
 	out.Close()
 }
 
+// -1 == a, 0 == neither, 1 == b
+func chooseAB(a, b map[string]string, key string) int {
+	id1, ok1 := a[key]
+	id2, ok2 := b[key]
+
+	// If only one has an ID, the ID goes first.
+	if ok1 && !ok2 {
+		return -1
+	}
+	if !ok1 && ok2 {
+		return 1
+	}
+
+	// If neither has an ID
+	if !ok1 && !ok2 {
+		return 0
+	}
+
+	// If both have identical IDs
+	if id1 == id2 {
+		return 0
+	}
+
+	// If both have an ID then order by ID lexically.
+	if id1 < id2 {
+		return -1
+	}
+	return 1
+}
+
 var usage = `Usage:
 
   zipper dest master source
@@ -167,7 +230,8 @@ var usage = `Usage:
 This program takes two ledger files and "zips" them together to make a single
 file. All directives will be moved to the beginning of the file!
 
-For this to work properly, each transaction needs the "code" field to be a
+For this to work properly, each transaction needs an "ID" K/V to be set to a
 unique transaction ID, otherwise it is not possible to sync partial files
-and syncing full files is not deterministic.
+and syncing full files is not deterministic. Any non-deterministic result is
+an error.
 `

@@ -36,14 +36,13 @@ The entire file is made up of these four types of entry.
 
 */
 
-// ParseLedger parses a ledger file from a string into a list of Transactions.
-func ParseLedger(input string) ([]ledger.Transaction, error) {
-	a, _, b := ParseLedgerRaw(NewCharReader(input, 1))
-	return a, b
+// ParseLedgerString parses a ledger File from a string.
+func ParseLedgerString(input string) (*ledger.File, error) {
+	return ParseLedger(NewCharReader(input, 1))
 }
 
-// ParseLedgerRaw parses a ledger file from a CharReader into a list of Transactions and directives.
-func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, error) {
+// ParseLedger parses a ledger from a CharReader into a File.
+func ParseLedger(cr *CharReader) (*ledger.File, error) {
 	transactions := []ledger.Transaction{}
 	directives := []ledger.Directive{}
 	for !cr.EOF {
@@ -69,14 +68,14 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 
 			typ, err := ReadUntilTrimmed(cr, " \n")
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			current.Type = typ
 
 			if cr.NC != '\n' {
 				arg, err := ReadUntilTrimmed(cr, "\n")
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				cr.Next()
 				current.Argument = arg
@@ -85,12 +84,12 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 			for cr.Match(" \t") {
 				cr.Eat(" \t")
 				if cr.EOF {
-					return nil, nil, ErrUnexpectedEnd(cr.L)
+					return nil, ErrUnexpectedEnd(cr.L)
 				}
 
 				line, err := ReadUntilTrimmed(cr, "\n")
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				cr.Next()
 
@@ -112,14 +111,14 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		// Parse the leading dates(s)
 		date, err := ParseDate(cr)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		current.Date = date
 		if cr.C == '=' {
 			cr.Next()
 			date, err := ParseDate(cr)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			current.ClearDate = date
 		}
@@ -127,7 +126,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		// Whitespace
 		cr.Eat(" \t")
 		if cr.EOF {
-			return nil, nil, ErrUnexpectedEnd(cr.L)
+			return nil, ErrUnexpectedEnd(cr.L)
 		}
 
 		// The optional cleared indicator
@@ -144,7 +143,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		// Maybe more whitespace (only if there was a cleared indicator)
 		cr.Eat(" \t")
 		if cr.EOF {
-			return nil, nil, ErrUnexpectedEnd(cr.L)
+			return nil, ErrUnexpectedEnd(cr.L)
 		}
 
 		// An optional "code"
@@ -153,10 +152,10 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 			cr.Eat(" \t")
 			desc, err := ReadUntilTrimmed(cr, ")\n")
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			if cr.C == '\n' {
-				return nil, nil, ErrMalformed(cr.L)
+				return nil, ErrMalformed(cr.L)
 			}
 			current.Code = desc
 			cr.Next()
@@ -165,13 +164,13 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		// Even more ws
 		cr.Eat(" \t")
 		if cr.EOF {
-			return nil, nil, ErrUnexpectedEnd(cr.L)
+			return nil, ErrUnexpectedEnd(cr.L)
 		}
 
 		// And, to cap the first line off, the description.
 		desc, err := ReadUntilTrimmed(cr, "\n")
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		current.Description = desc
 		cr.Next()
@@ -180,7 +179,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		for cr.Match(" \t") {
 			cr.Eat(" \t")
 			if cr.EOF {
-				return nil, nil, ErrUnexpectedEnd(cr.L)
+				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
 			// Is a comment that is attached to the transaction
@@ -189,7 +188,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 
 				cr.Eat(" \t")
 				if cr.EOF {
-					return nil, nil, ErrUnexpectedEnd(cr.L)
+					return nil, ErrUnexpectedEnd(cr.L)
 				}
 
 				// OK, we are going to read the line into a buffer, trying to look for patterns as we go.
@@ -207,7 +206,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 					if state == 0 && cr.C == ':' {
 						cr.Next()
 						if cr.EOF {
-							return nil, nil, ErrUnexpectedEnd(cr.L)
+							return nil, ErrUnexpectedEnd(cr.L)
 						}
 						state = 1
 						continue
@@ -218,7 +217,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 						ln = append(ln, cr.C)
 						cr.Next()
 						if cr.EOF {
-							return nil, nil, ErrUnexpectedEnd(cr.L)
+							return nil, ErrUnexpectedEnd(cr.L)
 						}
 						state = 2
 						continue
@@ -235,7 +234,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 							cr.Next()
 							cr.Eat(" \t")
 							if cr.EOF {
-								return nil, nil, ErrUnexpectedEnd(cr.L)
+								return nil, ErrUnexpectedEnd(cr.L)
 							}
 							continue
 						}
@@ -243,7 +242,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 						ln = append(ln, cr.C)
 						cr.Next()
 						if cr.EOF {
-							return nil, nil, ErrUnexpectedEnd(cr.L)
+							return nil, ErrUnexpectedEnd(cr.L)
 						}
 						continue
 					}
@@ -260,7 +259,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 								cr.Next()
 								cr.Eat(" \t")
 								if cr.EOF {
-									return nil, nil, ErrUnexpectedEnd(cr.L)
+									return nil, ErrUnexpectedEnd(cr.L)
 								}
 								state = 3
 								continue
@@ -271,7 +270,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 							ln = append(ln, cr.C)
 							cr.Next()
 							if cr.EOF {
-								return nil, nil, ErrUnexpectedEnd(cr.L)
+								return nil, ErrUnexpectedEnd(cr.L)
 							}
 							continue
 						}
@@ -282,7 +281,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 							ln = append(ln, cr.C)
 							cr.Next()
 							if cr.EOF {
-								return nil, nil, ErrUnexpectedEnd(cr.L)
+								return nil, ErrUnexpectedEnd(cr.L)
 							}
 							continue
 						}
@@ -291,7 +290,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 						ln = append(ln, cr.C)
 						cr.Next()
 						if cr.EOF {
-							return nil, nil, ErrUnexpectedEnd(cr.L)
+							return nil, ErrUnexpectedEnd(cr.L)
 						}
 						continue
 					}
@@ -301,7 +300,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 						ln = append(ln, cr.C)
 						cr.Next()
 						if cr.EOF {
-							return nil, nil, ErrUnexpectedEnd(cr.L)
+							return nil, ErrUnexpectedEnd(cr.L)
 						}
 						continue
 					}
@@ -310,7 +309,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 					ln = append(ln, cr.C)
 					cr.Next()
 					if cr.EOF {
-						return nil, nil, ErrUnexpectedEnd(cr.L)
+						return nil, ErrUnexpectedEnd(cr.L)
 					}
 					continue
 				}
@@ -320,7 +319,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 					for _, c := range ln {
 						if c != ' ' && c != '\t' {
 							// Error. Character on a tag line that is not part of tags.
-							return nil, nil, ErrMalformedTagLine(cr.L)
+							return nil, ErrMalformedTagLine(cr.L)
 						}
 					}
 
@@ -354,7 +353,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 
 			cr.Eat(" \t")
 			if cr.EOF {
-				return nil, nil, ErrUnexpectedEnd(cr.L)
+				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
 			// OK, now for the actual hard part.
@@ -372,17 +371,17 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 				buf = append(buf, cr.C)
 				cr.Next()
 				if cr.EOF {
-					return nil, nil, ErrUnexpectedEnd(cr.L)
+					return nil, ErrUnexpectedEnd(cr.L)
 				}
 			}
 			if len(buf) == 0 {
-				return nil, nil, ErrMalformed(cr.L)
+				return nil, ErrMalformed(cr.L)
 			}
 			post.Account = string(buf)
 
 			cr.Eat(" \t")
 			if cr.EOF {
-				return nil, nil, ErrUnexpectedEnd(cr.L)
+				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
 			// Read the amount. Currently only supporting USD with or without the leading $
@@ -392,7 +391,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 				// Just in case...
 				cr.Eat(" \t")
 				if cr.EOF {
-					return nil, nil, ErrUnexpectedEnd(cr.L)
+					return nil, ErrUnexpectedEnd(cr.L)
 				}
 			}
 
@@ -411,7 +410,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 			for cr.MatchNumeric() || cr.C == '.' || cr.C == ',' {
 				if cr.C == '.' {
 					if cur == &part || null == true {
-						return nil, nil, ErrBadAmount(cr.L)
+						return nil, ErrBadAmount(cr.L)
 					}
 					cr.Next()
 					cur = &part
@@ -426,13 +425,13 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 				null = false
 				cr.Next()
 				if cr.EOF {
-					return nil, nil, ErrUnexpectedEnd(cr.L)
+					return nil, ErrUnexpectedEnd(cr.L)
 				}
 			}
 			if !null {
 				whole = whole * 10000
 				if part > 9999 {
-					return nil, nil, ErrBadAmount(cr.L)
+					return nil, ErrBadAmount(cr.L)
 				}
 				switch {
 				case part < 9:
@@ -451,7 +450,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 
 			cr.Eat(" \t")
 			if cr.EOF {
-				return nil, nil, ErrUnexpectedEnd(cr.L)
+				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
 			// Optional note
@@ -459,7 +458,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 				cr.Next()
 				line, err := ReadUntilTrimmed(cr, "\n")
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				cr.Next()
 				post.Note = line
@@ -469,11 +468,11 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 
 			cr.Eat(" \t")
 			if cr.EOF {
-				return nil, nil, ErrUnexpectedEnd(cr.L)
+				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
 			if cr.C != '\n' {
-				return nil, nil, ErrMalformed(cr.L)
+				return nil, ErrMalformed(cr.L)
 			}
 			cr.Next()
 
@@ -483,7 +482,7 @@ func ParseLedgerRaw(cr *CharReader) ([]ledger.Transaction, []ledger.Directive, e
 		transactions = append(transactions, current)
 	}
 
-	return transactions, directives, nil
+	return &ledger.File{T: transactions, D: directives}, nil
 }
 
 // ReadUntilTrimmed reads characters from the CharReader until one of the characters in `chars` is found.

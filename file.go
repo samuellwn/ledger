@@ -28,29 +28,34 @@ import (
 	"io"
 )
 
-// ErrImproperInterleave is returned by WriteLedgerFile if the two provided lists do not interleave properly.
+type File struct {
+	T []Transaction
+	D []Directive // Must be ordered so that the FoundBefore values are ascending!
+}
+
+// ErrImproperInterleave is returned by File.Format if the lists do not interleave properly.
 // Caused by bad FoundBefore values in the directives.
 var ErrImproperInterleave = errors.New("Ledger file transaction and directive lists do not interleave properly.")
 
-// WriteLedgerFile writes out a ledger file, interleaving the transactions and directives according to the
-// "FoundBefore" values in the directives. drs must be ordered so that the FoundBefore values are ascending.
-func WriteLedgerFile(w io.Writer, trs []Transaction, drs []Directive) error {
+// Format writes out a ledger file, interleaving the transactions and directives according to the
+// "FoundBefore" values in the directives.
+func (f *File) Format(w io.Writer) error {
 	ctr, cdr := 0, 0
-	for ctr < len(trs) || cdr < len(drs) {
+	for ctr < len(f.T) || cdr < len(f.D) {
 		// If we have remaining directives and the next directive goes before the current transaction
-		if cdr < len(drs) && drs[cdr].FoundBefore == ctr {
-			fmt.Fprintf(w, "\n%v", drs[cdr].String())
+		if cdr < len(f.D) && f.D[cdr].FoundBefore == ctr {
+			fmt.Fprintf(w, "\n%v", f.D[cdr].String())
 			cdr++
 			continue
 		}
 
 		// If we have remaining directives and we are out of transactions
-		if ctr >= len(trs) {
+		if ctr >= len(f.T) {
 			return ErrImproperInterleave
 		}
 
 		// Write next transaction
-		fmt.Fprintf(w, "\n%v", trs[ctr].String())
+		fmt.Fprintf(w, "\n%v", f.T[ctr].String())
 		ctr++
 	}
 	return nil

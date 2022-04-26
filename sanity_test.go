@@ -44,10 +44,12 @@ account Expenses:Food
 // This is a simple sanity check that makes sure the base features are functional under normal conditions.
 // I do not test nearly every case here, this is just to catch major errors.
 func TestBasicFunction(t *testing.T) {
-	transactions, directives, err := parse.ParseLedgerRaw(parse.NewCharReader(TestBasicFunctionInput, 33))
+	f, err := parse.ParseLedger(parse.NewCharReader(TestBasicFunctionInput, 33))
 	if err != nil {
 		t.Error(err)
 	}
+
+	transactions, directives := f.T, f.D
 
 	if len(directives) != 1 {
 		t.Fatalf("Incorrect number of directives: %v", len(directives))

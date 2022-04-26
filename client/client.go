@@ -97,7 +97,8 @@ func NewClient() (*Client, error) {
 	}
 
 	// and parse it into the raw transaction list.
-	client.raw, err = parse.ParseLedger(string(data))
+	f, err := parse.ParseLedgerString(string(data))
+	client.raw = f.T
 	if err != nil {
 		return nil, err
 	}

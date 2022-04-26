@@ -20,30 +20,38 @@ misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 */
 
-package main
+package tools
 
 import (
-	"github.com/milochristiansen/ledger/tools"
+	"fmt"
+	"os"
 )
 
-func main() {
-	fs := tools.CommonFlagSet(tools.FlagDestFile|tools.FlagMasterFile|tools.FlagID|tools.FlagRID, usage)
-	fs.Parse()
+// Why did I do this? Just because I could?
 
-	f := tools.LoadLedgerFile(fs.MasterFile)
-
-	rf := tools.LTail(f, fs.ID, fs.RID)
-
-	tools.WriteLedgerFile(fs.DestFile, rf)
+// HandleErrV takes a value+err and returns the value if and only if the error is nil. If the error is not nil,
+// it is written to standard error and os.Exit(1) is called.
+func HandleErrV[T any](t T, err error) T {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	return t
 }
 
-var usage = `Usage:
+// HandleErrS takes a condition+string and if the condition is true, the string is written to standard error
+// and os.Exit(1) is called.
+func HandleErrS(cond bool, err string) {
+	if cond {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-This program takes a ledger file and strips all content preceding the
-transaction with the given ID.
-
-For this to work properly, each transaction needs the "code" field to be a
-unique transaction ID, otherwise it is not possible. Additionally, to ensure
-proper operation on a file containing revision history, you may need to provide
-the revision ID of the transaction to split upon.
-`
+// HandleErr takes an error and if the error is not nil, it is written to standard error and os.Exit(1) is called.
+func HandleErr(err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}

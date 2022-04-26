@@ -292,7 +292,7 @@ func main() {
 		trs = append(trs, tr)
 	}
 
-	err = ledger.WriteLedgerFile(outFile, trs, nil)
+	err = (&ledger.File{T: trs, D: nil}).Format(outFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write ledger data: %v\n", err)
 		os.Exit(1)

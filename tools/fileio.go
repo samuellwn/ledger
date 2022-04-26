@@ -20,13 +20,14 @@ misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 */
 
-// Guts contains random common code used for implementing the various tools.
 package tools
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/csv"
+	"io"
 	"os"
+	"regexp"
 
 	"github.com/milochristiansen/ledger"
 	"github.com/milochristiansen/ledger/parse"
@@ -34,17 +35,56 @@ import (
 
 // LoadLedgerFile loads a ledger file from the given path. On any error the message is logged to standard error and the
 // program exits with code 1.
-func LoadLedgerFile(path string) ([]ledger.Transaction, []ledger.Directive) {
-	f, err := os.Open(path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	trs, drs, err := parse.ParseLedgerRaw(parse.NewRawCharReader(bufio.NewReader(f), 1))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	return trs, drs
+func LoadLedgerFile(path string) *ledger.File {
+	f := HandleErrV(os.Open(path))
+	defer f.Close()
+
+	lf, err := parse.ParseLedger(parse.NewRawCharReader(bufio.NewReader(f), 1))
+	HandleErr(err)
+	return lf
 }
 
+// WriteLedgerFile writes out a ledger file to the given path. On any error the message is logged to standard error
+// and the program exits with code 1.
+func WriteLedgerFile(path string, d *ledger.File) {
+	f := HandleErrV(os.Create(path))
+	defer f.Close()
+
+	HandleErr(d.Format(f))
+}
+
+// Matcher is used to store parsed lines from a matcher file.
+type Matcher struct {
+	R       *regexp.Regexp
+	Account string
+	Payee   string
+}
+
+// LoadMatchFile loads a csv match file and parses it into a list of Matchers. On any error the message is logged to
+// standard error and the program exits with code 1.
+func LoadMatchFile(path string) []Matcher {
+	mr := HandleErrV(os.Open(path))
+	defer mr.Close()
+
+	mrdr := csv.NewReader(mr)
+	mrdr.FieldsPerRecord = 3
+	mrdr.Comment = '#'
+
+	matchers := []Matcher{}
+	for {
+		line, err := mrdr.Read()
+		if err == io.EOF {
+			break
+		}
+		HandleErr(err)
+
+		reg := HandleErrV(regexp.Compile(line[0]))
+
+		matchers = append(matchers, Matcher{
+			reg,
+			line[1],
+			line[2],
+		})
+	}
+	return matchers
+}

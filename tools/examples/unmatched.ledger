@@ -1,0 +1,36 @@
+
+2022/04/01 * AUTO. FUNDS TRANSFER TO:  XXXXXXXXX   MILO
+	; FITID: 203
+	; TrnTyp: XFER
+	; FullDesc: AUTO. FUNDS TRANSFER TO:  XXXXXXXXX   MILO
+	; ID: nzJUc5Efo
+	; RID: nz-UI3EfK1
+	Example:Account                                   $-312.00
+	Unknown:Account
+
+2022/03/25 * AUTO. FUNDS TRANSFER TO:  XXXXXXXXX   JIM
+	; ID: SYJxI3mfop
+	; RID: SY-xc3ELK8
+	; FITID: 202
+	; TrnTyp: XFER
+	; FullDesc: AUTO. FUNDS TRANSFER TO:  XXXXXXXXX   JIM
+	Example:Account                                   $-150.00
+	Unknown:Account
+
+2022/03/15 * AUTO. FUNDS TRANSFER FROM:  XXXXXXXXX BOB
+	; ID: nY-xc3EfKQ
+	; RID: SY-xc5Efof
+	; FITID: 198
+	; TrnTyp: XFER
+	; FullDesc: AUTO. FUNDS TRANSFER FROM:  XXXXXXXXX BOB
+	Example:Account                                    $2002.00
+	Unknown:Account
+
+2022/03/10 * MOBILE CHECK DEPOSIT RDC AUTO-POST
+	; ID: Sz-xI5ELKx
+	; RID: nYJUI3ELo6
+	; FITID: 195
+	; TrnTyp: DEP
+	; FullDesc: MOBILE CHECK DEPOSIT RDC AUTO-POST
+	Example:Account                                    $255.84
+	Unknown:Account

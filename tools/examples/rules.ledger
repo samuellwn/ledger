@@ -1,0 +1,15 @@
+account Milo
+	payee AUTO\. FUNDS TRANSFER TO:.*MILO
+
+account Bob
+	payee Bob
+
+account Jim
+	alias James
+	payee James
+
+payee Bob
+	alias AUTO\. FUNDS TRANSFER TO:.*BOB
+
+payee James
+	alias AUTO\. FUNDS TRANSFER TO:.*JIM

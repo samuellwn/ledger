@@ -69,6 +69,7 @@ func ParseLedger(cr *lex.CharReader) (*ledger.File, error) {
 			// The start of this line doesn't look like a date, so it must be a directive.
 			current := ledger.Directive{
 				FoundBefore: len(transactions),
+				Location:    cr.L,
 			}
 
 			typ, err := ReadUntilTrimmed(cr, " \n")
@@ -108,9 +109,9 @@ func ParseLedger(cr *lex.CharReader) (*ledger.File, error) {
 		// Anything that is left must be a transaction. We will treat transactions and directives
 		// we don't support (yet) as an error.
 		current := ledger.Transaction{
-			Tags:    map[string]bool{},
-			KVPairs: map[string]string{},
-			Line:    cr.L,
+			Tags:     map[string]bool{},
+			KVPairs:  map[string]string{},
+			Location: cr.L,
 		}
 
 		// Parse the leading dates(s)

@@ -137,6 +137,7 @@ again:
 		cr.NEOF = true
 		return
 	}
+	cr.NL = cr.NL.CPlus()
 
 	// We simply strip carriage returns.
 	if cr.NC == '\r' {
@@ -149,7 +150,6 @@ again:
 		cr.NL = cr.NL.LPlus().C(0)
 		return
 	}
-	cr.NL = cr.NL.CPlus()
 }
 
 // Eat the given characters until something else is found or EOF.

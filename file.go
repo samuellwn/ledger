@@ -26,6 +26,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
+
+	"github.com/milochristiansen/ledger/parse/lex"
 )
 
 type File struct {
@@ -59,4 +62,118 @@ func (f *File) Format(w io.Writer) error {
 		ctr++
 	}
 	return nil
+}
+
+type ErrMalformedAccountName struct {
+	Name     string
+	Location lex.Location
+}
+
+func (err ErrMalformedAccountName) Error() string {
+	return fmt.Sprintf("Malformed account name (%s) at %s", err.Name, err.Location)
+}
+
+// Accounts returns a slice of all account directives, in the order they are found in D.
+// If any account directives fail to parse, Accounts returns an error.
+func (f *File) Accounts() ([]Account, error) {
+	accts := []Account{}
+	for dIx, d := range f.D {
+		if d.Type != "account" {
+			continue
+		}
+
+		acct := Account{
+			Name:           d.Argument,
+			FoundBefore:    d.FoundBefore,
+			Location:       d.Location,
+			DirectiveIndex: dIx,
+		}
+
+		// filter out some things that cause funny behovior
+		if strings.Contains(acct.Name, "  ") || strings.ContainsAny(acct.Name, ";\t") {
+			return nil, ErrMalformedAccountName{acct.Name, acct.Location}
+		}
+
+		for sdIx, sd := range d.Lines {
+			if strings.HasPrefix(sd, "default") {
+				// ledger is lax about directive parsing
+				acct.Default = true
+			} else if strings.HasPrefix(sd, "alias") {
+				alias := strings.TrimSpace(sd[len("alias"):])
+				// filter out some things that cause funny behovior
+				if strings.Contains(alias, "  ") || strings.ContainsAny(alias, ";\t") {
+					return nil, ErrMalformedAccountName{
+						Name:     alias,
+						Location: acct.Location.L(acct.Location.Line() + uint64(sdIx)),
+					}
+				}
+				acct.Aliases = append(acct.Aliases, alias)
+			} else if strings.HasPrefix(sd, "payee") {
+				payee := strings.TrimSpace(sd[len("payee"):])
+				acct.Payees = append(acct.Payees, payee)
+			} else if strings.HasPrefix(sd, "note") {
+				note := strings.TrimSpace(sd[len("note"):])
+				acct.Note = note
+			}
+		}
+
+		accts = append(accts, acct)
+	}
+	return accts, nil
+}
+
+// Payees returns a slice of all payee directives, in the order they are found in D.
+// if any payee directives fail to parse, Payees returns an error.
+func (f *File) Payees() ([]Payee, error) {
+	payees := []Payee{}
+	for dIx, d := range f.D {
+		if d.Type != "account" {
+			continue
+		}
+
+		payee := Payee{
+			Name:           d.Argument,
+			FoundBefore:    d.FoundBefore,
+			Location:       d.Location,
+			DirectiveIndex: dIx,
+		}
+
+		for _, sd := range d.Lines {
+			if strings.HasPrefix(sd, "alias") {
+				alias := strings.TrimSpace(sd[len("alias"):])
+				payee.Aliases = append(payee.Aliases, alias)
+			} else if strings.HasPrefix(sd, "uuid") {
+				uuid := strings.TrimSpace(sd[len("uuid"):])
+				payee.Uuids = append(payee.Uuids, uuid)
+			}
+		}
+
+		payees = append(payees, payee)
+	}
+	return payees, nil
+}
+
+// Account is a simple type representing an account directive. Subdirectives containing value expressions
+// are not included.
+type Account struct {
+	Name    string   // The name of this account.
+	Note    string   // The contents of the note subdirective.
+	Aliases []string // One string for each alias subdirective.
+	Payees  []string // One string for each payee subdirective.
+	Default bool     // True if the default subdirective is present.
+
+	FoundBefore    int          // The transaction index this account precedes.
+	DirectiveIndex int          // The index of this account in the list of all directives.
+	Location       lex.Location // Line number where this account starts.
+}
+
+// Payee is a simple type representing a payee directive.
+type Payee struct {
+	Name    string   // The payee name to substitute if matched
+	Aliases []string // One string for each regexp to match with.
+	Uuids   []string // One string for each uuid to check.
+
+	FoundBefore    int          // The transaction index this directive precedes.
+	DirectiveIndex int          // The index of this directive in the list of all directives.
+	Location       lex.Location // Line number where this directive starts.
 }

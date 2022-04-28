@@ -20,11 +20,9 @@ misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 */
 
-package lex
 
-/*
-This is a greatly simplified and stripped down version of the core Lexer code that many of my parsers used for years.
-*/
+// This is a greatly simplified and stripped down version of the core Lexer code that many of my parsers used for years.
+package lex
 
 import (
 	"fmt"
@@ -238,18 +236,18 @@ func (l Location) L(i uint64) Location {
 		i = 0
 	}
 	l = l & 0xffff000000000000
-	l = l & Location(i)
+	l = l | Location(i)
 	return l
 }
 
 // C is a composite constructor for a location, setting the column part. If you pass in an integer that is
 // too large to fit the 16 bit storage area, 0 will be used instead.
 func (l Location) C(i uint16) Location {
-	if uint64(i) & 0x0000ffffffffffff != 0 {
+	if (uint64(i)<<48)&0x0000ffffffffffff != 0 {
 		i = 0
 	}
 	l = l & 0x0000ffffffffffff
-	l = l & (Location(i) << 48)
+	l = l | (Location(i) << 48)
 	return l
 }
 
@@ -264,4 +262,3 @@ func (l Location) CPlus() Location {
 	i := l.Column()
 	return l.C(i)
 }
-

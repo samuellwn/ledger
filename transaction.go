@@ -72,7 +72,7 @@ type Transaction struct {
 	Tags    map[string]bool   // ; :tag:tag:tag:
 	KVPairs map[string]string // ; Key: Value
 
-	Line lex.Location // The line number where the transaction starts.
+	Location lex.Location // The line number where the transaction starts.
 }
 
 // Posting is a single line item in a Transaction.
@@ -131,7 +131,7 @@ func (t *Transaction) Canonicalize() error {
 
 	for i, p := range t.Postings {
 		if p.Null && null != -1 {
-			return MultipleNullError{-1, t.Line}
+			return MultipleNullError{-1, t.Location}
 		}
 		if p.Null {
 			null = i
@@ -144,7 +144,7 @@ func (t *Transaction) Canonicalize() error {
 		return nil
 	}
 	if bal != 0 {
-		return BalanceError{-1, t.Line}
+		return BalanceError{-1, t.Location}
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func SumTransactions(ts []Transaction) (map[string]int64, error) {
 	for i, t := range ts {
 		ok, ac := t.Balance()
 		if !ok {
-			return nil, BalanceError{i, t.Line}
+			return nil, BalanceError{i, t.Location}
 		}
 
 		for k, v := range ac {

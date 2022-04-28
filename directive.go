@@ -22,14 +22,19 @@ misrepresented as being the original software.
 
 package ledger
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/milochristiansen/ledger/parse/lex"
+)
 
 // Directive is a simple type to represent a partially parsed, but not validated, command directive.
 type Directive struct {
-	Type        string   // The keyword that starts the directive.
-	Argument    string   // Any remaining content that was on the first line of the directive.
-	Lines       []string // Subsequent indented lines. Stored here unparsed.
-	FoundBefore int      // The transaction index this directive precedes.
+	Type        string       // The keyword that starts the directive.
+	Argument    string       // Any remaining content that was on the first line of the directive.
+	Lines       []string     // Subsequent indented lines. Stored here unparsed.
+	FoundBefore int          // The transaction index this directive precedes.
+	Location    lex.Location // Line number this directive begins at.
 }
 
 func (d *Directive) String() string {

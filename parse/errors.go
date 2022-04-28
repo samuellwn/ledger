@@ -22,39 +22,43 @@ misrepresented as being the original software.
 
 package parse
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/milochristiansen/ledger/parse/lex"
+)
 
 // ErrBadDate is returned by the parser when it attempts to consume a invalid date.
-type ErrBadDate int
+type ErrBadDate lex.Location
 
 func (err ErrBadDate) Error() string {
-	return fmt.Sprintf("Malformed transaction date on line: %v", int(err))
+	return fmt.Sprintf("Malformed transaction date on line: %v", lex.Location(err))
 }
 
 // ErrBadAmount is returned by the parser when it attempts to consume an amount that is out of the valid range.
-type ErrBadAmount int
+type ErrBadAmount lex.Location
 
 func (err ErrBadAmount) Error() string {
-	return fmt.Sprintf("Amount value out of range on line: %v", int(err))
+	return fmt.Sprintf("Amount value out of range on line: %v", lex.Location(err))
 }
 
 // ErrUnexpectedEnd is returned by the parser when the end of input is found unexpectedly.
-type ErrUnexpectedEnd int
+type ErrUnexpectedEnd lex.Location
 
 func (err ErrUnexpectedEnd) Error() string {
-	return fmt.Sprintf("Unexpected end of input on line: %v", int(err))
+	return fmt.Sprintf("Unexpected end of input on line: %v", lex.Location(err))
 }
 
 // ErrMalformed is returned by the parser when it finds a malformed transaction.
-type ErrMalformed int
+type ErrMalformed lex.Location
 
 func (err ErrMalformed) Error() string {
-	return fmt.Sprintf("Malformed transaction on line: %v", int(err))
+	return fmt.Sprintf("Malformed transaction on line: %v", lex.Location(err))
 }
 
 // ErrMalformedTagLine is returned by the parser when it attempts to consume a tag line that is malformed.
-type ErrMalformedTagLine int
+type ErrMalformedTagLine lex.Location
 
 func (err ErrMalformedTagLine) Error() string {
-	return fmt.Sprintf("Malformed tags in transaction on line: %v", int(err))
+	return fmt.Sprintf("Malformed tags in transaction on line: %v", lex.Location(err))
 }

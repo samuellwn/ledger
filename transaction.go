@@ -43,6 +43,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/milochristiansen/ledger/parse/lex"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -71,7 +72,7 @@ type Transaction struct {
 	Tags    map[string]bool   // ; :tag:tag:tag:
 	KVPairs map[string]string // ; Key: Value
 
-	Line int // The line number where the transaction starts.
+	Line lex.Location // The line number where the transaction starts.
 }
 
 // Posting is a single line item in a Transaction.
@@ -130,7 +131,7 @@ func (t *Transaction) Canonicalize() error {
 
 	for i, p := range t.Postings {
 		if p.Null && null != -1 {
-			return MultipleNullError([2]int{-1, t.Line})
+			return MultipleNullError{-1, t.Line}
 		}
 		if p.Null {
 			null = i
@@ -143,7 +144,7 @@ func (t *Transaction) Canonicalize() error {
 		return nil
 	}
 	if bal != 0 {
-		return BalanceError([2]int{-1, t.Line})
+		return BalanceError{-1, t.Line}
 	}
 	return nil
 }
@@ -155,7 +156,7 @@ func SumTransactions(ts []Transaction) (map[string]int64, error) {
 	for i, t := range ts {
 		ok, ac := t.Balance()
 		if !ok {
-			return nil, BalanceError([2]int{i, t.Line})
+			return nil, BalanceError{i, t.Line}
 		}
 
 		for k, v := range ac {
@@ -385,22 +386,28 @@ func (tds TransactionDateSorter) Swap(i, j int) {
 // Error types
 
 // BalanceError is returned by functions that validate transactions in some way when the transaction isn't balanced.
-type BalanceError [2]int
+type BalanceError struct {
+	T int
+	L lex.Location
+}
 
 func (err BalanceError) Error() string {
-	if err[0] < 0 {
-		return fmt.Sprintf("Transaction (defined on line %v) does not balance.", err[1])
+	if err.T < 0 {
+		return fmt.Sprintf("Transaction (defined on line %v) does not balance.", err.L)
 	}
-	return fmt.Sprintf("Transaction %v (defined on line %v) does not balance.", err[0], err[1])
+	return fmt.Sprintf("Transaction %v (defined on line %v) does not balance.", err.T, err.L)
 }
 
 // MultipleNullError is returned by functions that validate transactions in some way when the transaction has more
 // than one null posting.
-type MultipleNullError [2]int
+type MultipleNullError struct {
+	T int
+	L lex.Location
+}
 
 func (err MultipleNullError) Error() string {
-	if err[0] < 0 {
-		return fmt.Sprintf("Transaction (defined on line %v) has multiple null postings.", err[1])
+	if err.T < 0 {
+		return fmt.Sprintf("Transaction (defined on line %v) has multiple null postings.", err.L)
 	}
-	return fmt.Sprintf("Transaction %v (defined on line %v) has multiple null postings.", err[0], err[1])
+	return fmt.Sprintf("Transaction %v (defined on line %v) has multiple null postings.", err.T, err.L)
 }

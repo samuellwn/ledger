@@ -20,44 +20,47 @@ misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 */
 
-package parse
+package lex
 
 /*
 This is a greatly simplified and stripped down version of the core Lexer code that many of my parsers used for years.
 */
 
-import "io"
-import "strings"
-import "unicode"
+import (
+	"fmt"
+	"io"
+	"strings"
+	"unicode"
+)
 
 // CharReader is a simple way to read from a string character by character, with line info and lookahead.
 type CharReader struct {
 	source io.RuneReader
 
 	// The current character
-	L   int  // Line
+	L   Location  // Line
 	C   rune // Character
 	EOF bool // true if current C and L are invalid, at end of input
 
 	// The lookahead (next) character
-	NL   int
+	NL   Location
 	NC   rune
 	NEOF bool // true if current NC and NL are invalid, will be at end of input with next advance
 }
 
 // NewCharReader returns a new CharReader with the input preadvanced so that all fields are valid.
-func NewCharReader(source string, line int) *CharReader {
+func NewCharReader(source string, line uint) *CharReader {
 	return NewRawCharReader(strings.NewReader(source), line)
 }
 
 // NewRawCharReader returns a new CharReader with the input preadvanced so that all fields are valid.
-func NewRawCharReader(source io.RuneReader, line int) *CharReader {
+func NewRawCharReader(source io.RuneReader, line uint) *CharReader {
 	cr := new(CharReader)
 
 	cr.source = source
 
-	cr.L = line
-	cr.NL = line
+	cr.L = Location(0).L(uint64(line))
+	cr.NL = Location(0).L(uint64(line))
 
 	// prime the pump
 	cr.Next()
@@ -145,9 +148,10 @@ again:
 	}
 
 	if cr.NC == '\n' {
-		cr.NL++
+		cr.NL = cr.NL.LPlus().C(0)
 		return
 	}
+	cr.NL = cr.NL.CPlus()
 }
 
 // Eat the given characters until something else is found or EOF.
@@ -209,3 +213,55 @@ func (cr *CharReader) ReadUntil(chars string, buf []rune) []rune {
 	}
 	return buf
 }
+
+// Location represents a line and column number for a given character in the lexer input.
+type Location uint64
+
+// Line returns a 48 bit line number.
+func (l Location) Line() uint64 {
+	return uint64((l & 0x0000ffffffffffff))
+}
+
+// Column returns a 16 bit column number.
+func (l Location) Column() uint16 {
+	return uint16((l & 0xffff000000000000) >> 48)
+}
+
+func (l Location) String() string {
+	return fmt.Sprintf("%v:%v", l.Line(), l.Column())
+}
+
+// L is a composite constructor for a location, setting the line part. If you pass in an integer that is too
+// large to fit the 48 bit storage area, 0 will be used instead.
+func (l Location) L(i uint64) Location {
+	if uint64(i) & 0xffff000000000000 != 0 {
+		i = 0
+	}
+	l = l & 0xffff000000000000
+	l = l & Location(i)
+	return l
+}
+
+// C is a composite constructor for a location, setting the column part. If you pass in an integer that is
+// too large to fit the 16 bit storage area, 0 will be used instead.
+func (l Location) C(i uint16) Location {
+	if uint64(i) & 0x0000ffffffffffff != 0 {
+		i = 0
+	}
+	l = l & 0x0000ffffffffffff
+	l = l & (Location(i) << 48)
+	return l
+}
+
+// LPlus increments the line portion of a Location and returns the result.
+func (l Location) LPlus() Location {
+	i := l.Line()
+	return l.L(i)
+}
+
+// CPlus increments the column portion of a Location and returns the result.
+func (l Location) CPlus() Location {
+	i := l.Column()
+	return l.C(i)
+}
+

@@ -22,9 +22,14 @@ misrepresented as being the original software.
 
 package parse
 
-import "time"
-import "strings"
-import "github.com/milochristiansen/ledger"
+import (
+	"io"
+	"strings"
+	"time"
+
+	"github.com/milochristiansen/ledger"
+	"github.com/milochristiansen/ledger/parse/lex"
+)
 
 /*
 
@@ -38,11 +43,11 @@ The entire file is made up of these four types of entry.
 
 // ParseLedgerString parses a ledger File from a string.
 func ParseLedgerString(input string) (*ledger.File, error) {
-	return ParseLedger(NewCharReader(input, 1))
+	return ParseLedger(lex.NewCharReader(input, 1))
 }
 
 // ParseLedger parses a ledger from a CharReader into a File.
-func ParseLedger(cr *CharReader) (*ledger.File, error) {
+func ParseLedger(cr *lex.CharReader) (*ledger.File, error) {
 	transactions := []ledger.Transaction{}
 	directives := []ledger.Directive{}
 	for !cr.EOF {
@@ -487,7 +492,7 @@ func ParseLedger(cr *CharReader) (*ledger.File, error) {
 
 // ReadUntilTrimmed reads characters from the CharReader until one of the characters in `chars` is found.
 // The result then has all the whitespace trimmed from the ends.
-func ReadUntilTrimmed(cr *CharReader, chars string) (string, error) {
+func ReadUntilTrimmed(cr *lex.CharReader, chars string) (string, error) {
 	ln := []rune{}
 	ln = cr.ReadUntil(chars, ln)
 	if cr.EOF {
@@ -511,7 +516,7 @@ func ReadUntilTrimmed(cr *CharReader, chars string) (string, error) {
 }
 
 // ParseDate reads a date (in yyyy/mm/dd format) from the CharReader.
-func ParseDate(cr *CharReader) (time.Time, error) {
+func ParseDate(cr *lex.CharReader) (time.Time, error) {
 	date := []rune{}
 	ok := false
 	var t time.Time
@@ -553,4 +558,16 @@ func ParseDate(cr *CharReader) (time.Time, error) {
 	}
 
 	return time.Parse("2006/01/02", string(date))
+}
+
+// NewCharReader returns a new lex.CharReader with the input preadvanced so that all fields are valid.
+// This is a helper function to reduce otherwise unneeded imports.
+func NewCharReader(source string, line uint) *lex.CharReader {
+	return lex.NewCharReader(source, line)
+}
+
+// NewRawCharReader returns a new lex.CharReader with the input preadvanced so that all fields are valid.
+// This is a helper function to reduce otherwise unneeded imports.
+func NewRawCharReader(source io.RuneReader, line uint) *lex.CharReader {
+	return lex.NewRawCharReader(source, line)
 }

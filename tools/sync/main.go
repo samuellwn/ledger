@@ -136,9 +136,6 @@ func main() {
 
 var usage = `Usage:
 
-  sync listen master output addr
-  sync send master output addr id [rid]
-
 This program takes a ledger file and either listens for a client to connect and
 send an update, or sends an update to a remote copy of this program that is
 listening.

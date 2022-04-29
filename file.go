@@ -258,3 +258,44 @@ func (f *File) ParseMatchers() ([]Matcher, error) {
 
 	return matchers, nil
 }
+
+// CleanCopy takes a perfect copy of the file object. Any edits to the returned File
+// will not modify this method's receiver.
+func (f *File) CleanCopy() *File {
+	nf := &File{[]Transaction{}, []Directive{}}
+
+	for _, tr := range f.T {
+		nf.T = append(nf.T, *tr.CleanCopy())
+	}
+
+	for _, dir := range f.D {
+		nf.D = append(nf.D, *dir.CleanCopy())
+	}
+
+	return nf
+}
+
+// StripHistory removes all edit history. This method assumes all directives
+// are at the beginning of the file. If any directive has a FoundBefore greater
+// than 0 data corruption can occur.
+func (f *File) StripHistory() {
+	newTrs := []Transaction{}
+	trIxs := map[string]int{}
+	for _, tr := range f.T {
+		id, ok := tr.KVPairs["ID"]
+		if !ok || id == "" {
+			newTrs = append(newTrs, tr)
+			continue
+		}
+
+		if idx, ok := trIxs[id]; ok {
+			newTrs[idx] = tr
+			continue
+		}
+
+		trIxs[id] = len(newTrs)
+		newTrs = append(newTrs, tr)
+	}
+
+	f.T = newTrs
+}

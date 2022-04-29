@@ -26,6 +26,7 @@ import (
 	"bytes"
 
 	"github.com/samuellwn/ledger/parse/lex"
+	"golang.org/x/exp/slices"
 )
 
 // Directive is a simple type to represent a partially parsed, but not validated, command directive.
@@ -66,4 +67,12 @@ func (d *Directive) Compare(d2 Directive) bool {
 		}
 	}
 	return true
+}
+
+// CleanCopy takes a perfect copy of this directive. Any edits to the returned Directive
+// will not modify this method's receiver.
+func (d *Directive) CleanCopy() *Directive {
+	nd := *d
+	nd.Lines = slices.Clone(d.Lines)
+	return &nd
 }

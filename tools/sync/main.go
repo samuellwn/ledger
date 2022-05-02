@@ -43,11 +43,6 @@ func main() {
 	fs.Flags.StringVar(&addr, "addr", addr, "Address to connect or listen to.")
 	fs.Parse()
 
-	if len(os.Args) < 5 || (len(os.Args) > 1 && (os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help")) {
-		fmt.Print(usage)
-		os.Exit(1)
-	}
-
 	// Read master file and setup internal state.
 	mf := tools.LoadLedgerFile(fs.MasterFile)
 
@@ -147,8 +142,8 @@ an error.
 
 The "master" file is used to set the initial state of the program.
 
-"output" should be a directory used to write the result of each received sync
-when the "listen" mod is used, or the path to the output file for send mode.
+"dest" should be a directory used to write the result of each received sync
+when in "server" mode, or the path to the output file for the normal send mode.
 
-For "listen" mode the address is the ip:port to listen on.
+For "server" mode the address is the ip:port to listen on.
 `

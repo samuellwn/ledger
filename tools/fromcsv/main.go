@@ -272,8 +272,8 @@ func main() {
 			Date:        date,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID":  ledger.GenID(),
-				"RID": ledger.GenID(),
+				"ID":  <-ledger.IDService,
+				"RID": <-ledger.IDService,
 			},
 			Postings: []ledger.Posting{
 				{

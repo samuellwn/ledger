@@ -51,8 +51,8 @@ func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *led
 			Date:        str.DtPosted.Time,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID":       ledger.GenID(),
-				"RID":      ledger.GenID(),
+				"ID":       <-ledger.IDService,
+				"RID":      <-ledger.IDService,
 				"FITID":    string(str.FiTID),
 				"TrnTyp":   str.TrnType.String(),
 				"FullDesc": string(str.Memo),

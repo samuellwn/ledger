@@ -23,21 +23,23 @@ misrepresented as being the original software.
 package ledger
 
 import (
-	"sync"
 	"time"
 
 	"github.com/teris-io/shortid"
 )
 
-var idsource *shortid.Shortid
-var idmx sync.Mutex
+// IDService is a read only channel that will return a short ID string every time you read it.
+var IDService <-chan string
 
 func init() {
-	idsource = shortid.MustNew(1, shortid.DefaultABC, uint64(time.Now().UnixNano()))
-}
+	go func() {
+		c := make(chan string)
+		IDService = c
 
-func GenID() string {
-	idmx.Lock()
-	defer idmx.Unlock()
-	return idsource.MustGenerate()
+		idsource := shortid.MustNew(1, shortid.DefaultABC, uint64(time.Now().UnixNano()))
+
+		for {
+			c <- idsource.MustGenerate()
+		}
+	}()
 }

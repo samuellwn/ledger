@@ -173,7 +173,7 @@ type Account struct {
 	Default bool     // True if the default subdirective is present.
 
 	FoundBefore    int          // The transaction index this account precedes.
-	DirectiveIndex int          // The index of this account in the list of all directives.
+	DirectiveIndex int          // The index of this account in the list of all directives. Calling File.Format may ruin this relationship.
 	Location       lex.Location // Line number where this account starts.
 }
 
@@ -184,7 +184,7 @@ type Payee struct {
 	Uuids   []string // One string for each uuid to check.
 
 	FoundBefore    int          // The transaction index this directive precedes.
-	DirectiveIndex int          // The index of this directive in the list of all directives.
+	DirectiveIndex int          // The index of this directive in the list of all directives. Calling File.Format may ruin this relationship.
 	Location       lex.Location // Line number where this directive starts.
 }
 

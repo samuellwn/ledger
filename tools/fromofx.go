@@ -24,11 +24,9 @@ package tools
 
 import (
 	"io"
-	"time"
 
 	"github.com/aclindsa/ofxgo"
 	"github.com/milochristiansen/ledger"
-	"github.com/teris-io/shortid"
 )
 
 func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.File {
@@ -41,8 +39,6 @@ func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.Fil
 	b, ok := ofxd.Bank[0].(*ofxgo.StatementResponse)
 	HandleErrS(!ok, "Unexpected response type.")
 	HandleErrS(len(b.BankTranList.Transactions) == 0, "No transactions.")
-
-	idsource := shortid.MustNew(16, shortid.DefaultABC, uint64(time.Now().UnixNano()))
 
 	trs := []ledger.Transaction{}
 	for _, str := range b.BankTranList.Transactions {
@@ -66,8 +62,8 @@ func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.Fil
 			Date:        str.DtPosted.Time,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID":       idsource.MustGenerate(),
-				"RID":      idsource.MustGenerate(),
+				"ID":       ledger.GenID(),
+				"RID":      ledger.GenID(),
 				"FITID":    string(str.FiTID),
 				"TrnTyp":   str.TrnType.String(),
 				"FullDesc": string(str.Memo),

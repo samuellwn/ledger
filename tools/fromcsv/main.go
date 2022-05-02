@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/milochristiansen/ledger"
-	"github.com/teris-io/shortid"
 )
 
 var usage string = `Usage: fromcsv [-o <dest>]|[-output <dest>] options... <src>
@@ -215,8 +214,6 @@ func main() {
 	}
 	minLen++
 
-	idsource := shortid.MustNew(16, shortid.DefaultABC, uint64(time.Now().UnixNano()))
-
 	trs := []ledger.Transaction{}
 	for {
 		record, err := reader.Read()
@@ -275,8 +272,8 @@ func main() {
 			Date:        date,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID":  idsource.MustGenerate(),
-				"RID": idsource.MustGenerate(),
+				"ID":  ledger.GenID(),
+				"RID": ledger.GenID(),
 			},
 			Postings: []ledger.Posting{
 				{

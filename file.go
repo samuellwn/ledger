@@ -27,14 +27,16 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/milochristiansen/ledger/parse/lex"
 )
 
+// File hold a parsed ledger file stored as lists of Directives and Transactions.
 type File struct {
 	T []Transaction
-	D []Directive // Must be ordered so that the FoundBefore values are ascending!
+	D []Directive
 }
 
 // ErrImproperInterleave is returned by File.Format if the lists do not interleave properly.
@@ -42,8 +44,14 @@ type File struct {
 var ErrImproperInterleave = errors.New("Ledger file transaction and directive lists do not interleave properly.")
 
 // Format writes out a ledger file, interleaving the transactions and directives according to the
-// "FoundBefore" values in the directives.
+// "FoundBefore" values in the directives. The directive list is sorted on the FoundBefore values as
+// part of this operation.
 func (f *File) Format(w io.Writer) error {
+	// Use a stable sort to be minimally disruptive.
+	sort.SliceStable(f.D, func(i, j int) bool {
+		return f.D[i].FoundBefore < f.D[j].FoundBefore
+	})
+
 	ctr, cdr := 0, 0
 	for ctr < len(f.T) || cdr < len(f.D) {
 		// If we have remaining directives and the next directive goes before the current transaction

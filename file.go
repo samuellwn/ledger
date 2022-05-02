@@ -177,3 +177,19 @@ type Payee struct {
 	DirectiveIndex int          // The index of this directive in the list of all directives.
 	Location       lex.Location // Line number where this directive starts.
 }
+
+// Matched finds transactions by regexp on the description, and returns a slice of found transactions
+// with postings and description modified by the first successful match from matchers. Only transactions
+// with a posting containing the given account will be modified.
+func (f *File) Matched(account string, matchers []Matcher) []Transaction {
+	outTrs := []Transaction{}
+	for _, ftr := range f.T {
+		tr := *ftr.CleanCopy()
+		if tr.Match(account, matchers) {
+			rid := GenID()
+			tr.KVPairs["RID"] = rid
+			outTrs = append(outTrs, tr)
+		}
+	}
+	return outTrs
+}

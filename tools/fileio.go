@@ -53,16 +53,9 @@ func WriteLedgerFile(path string, d *ledger.File) {
 	HandleErr(d.Format(f))
 }
 
-// Matcher is used to store parsed lines from a matcher file.
-type Matcher struct {
-	R       *regexp.Regexp
-	Account string
-	Payee   string
-}
-
 // LoadMatchFile loads a csv match file and parses it into a list of Matchers. On any error the message is logged to
 // standard error and the program exits with code 1.
-func LoadMatchFile(path string) []Matcher {
+func LoadMatchFile(path string) []ledger.Matcher {
 	mr := HandleErrV(os.Open(path))
 	defer mr.Close()
 
@@ -70,7 +63,7 @@ func LoadMatchFile(path string) []Matcher {
 	mrdr.FieldsPerRecord = 3
 	mrdr.Comment = '#'
 
-	matchers := []Matcher{}
+	matchers := []ledger.Matcher{}
 	for {
 		line, err := mrdr.Read()
 		if err == io.EOF {
@@ -80,10 +73,10 @@ func LoadMatchFile(path string) []Matcher {
 
 		reg := HandleErrV(regexp.Compile(line[0]))
 
-		matchers = append(matchers, Matcher{
-			reg,
-			line[1],
-			line[2],
+		matchers = append(matchers, ledger.Matcher{
+			R:       reg,
+			Account: line[1],
+			Payee:   line[2],
 		})
 	}
 	return matchers

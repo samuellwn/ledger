@@ -38,6 +38,7 @@ package ledger
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -221,6 +222,45 @@ func FormatSums(accounts map[string]int64, pad string) [][]string {
 	}
 
 	return root.render("", "", pad, nil)
+}
+
+// Match replaces the given account in the postings with the first matcher that succeeds.
+// If that matcher has a payee, that payee will replace this transaction's description.
+// Returns true if any matcher succeeded, or false otherwise
+func (t *Transaction) Match(account string, matchers []Matcher) bool {
+	postingIxs := []int{}
+	for i, p := range t.Postings {
+		if p.Account == account {
+			postingIxs = append(postingIxs, i)
+		}
+	}
+
+	if len(postingIxs) == 0 {
+		return false
+	}
+
+	for _, matcher := range matchers {
+		if matcher.R.MatchString(t.Description) {
+
+			if matcher.Payee != "" {
+				t.Description = matcher.Payee
+			}
+			for _, ix := range postingIxs {
+				t.Postings[ix].Account = matcher.Account
+			}
+
+			return true
+		}
+	}
+
+	return false
+}
+
+// Matcher associates an account or a payee with a regexp to match against a transaction description.
+type Matcher struct {
+	R       *regexp.Regexp
+	Account string
+	Payee   string
 }
 
 func (t *Transaction) String() string {

@@ -25,6 +25,7 @@ package main
 import (
 	"os"
 
+	"github.com/milochristiansen/ledger"
 	"github.com/milochristiansen/ledger/tools"
 )
 
@@ -34,7 +35,7 @@ func main() {
 
 	fr := tools.HandleErrV(os.Open(fs.SourceFile))
 
-	matchers := []tools.Matcher{}
+	matchers := []ledger.Matcher{}
 	if fs.MatchFile != "" {
 		matchers = tools.LoadMatchFile(fs.MatchFile)
 	}

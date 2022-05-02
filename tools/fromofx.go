@@ -29,7 +29,9 @@ import (
 	"github.com/milochristiansen/ledger"
 )
 
-func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.File {
+var defaultAccount string = "Unknown:Account"
+
+func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *ledger.File {
 	// Load OFX file
 	ofxd := HandleErrV(ofxgo.ParseResponse(file))
 
@@ -44,21 +46,8 @@ func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.Fil
 	for _, str := range b.BankTranList.Transactions {
 		v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
 
-		account, payee := "Unknown:Account", string(str.Memo)
-		for _, matcher := range matchers {
-			if matcher.R.MatchString(payee) {
-				if matcher.Account != "" {
-					account = matcher.Account
-				}
-				if matcher.Payee != "" {
-					payee = matcher.Payee
-				}
-				break
-			}
-		}
-
 		tr := ledger.Transaction{
-			Description: payee,
+			Description: string(str.Memo),
 			Date:        str.DtPosted.Time,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
@@ -74,11 +63,13 @@ func FromOFX(file io.Reader, mainAccount string, matchers []Matcher) *ledger.Fil
 					Value:   v,
 				},
 				{
-					Account: account,
+					Account: defaultAccount,
 					Null:    true,
 				},
 			},
 		}
+
+		tr.Match(defaultAccount, matchers)
 
 		trs = append(trs, tr)
 	}

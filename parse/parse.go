@@ -390,73 +390,41 @@ func ParseLedger(cr *lex.CharReader) (*ledger.File, error) {
 				return nil, ErrUnexpectedEnd(cr.L)
 			}
 
-			// Read the amount. Currently only supporting USD with or without the leading $
-			if cr.C == '$' {
-				cr.Next()
-
-				// Just in case...
-				cr.Eat(" \t")
-				if cr.EOF {
-					return nil, ErrUnexpectedEnd(cr.L)
-				}
+			post.Value, post.Null, err = ReadAmount(cr)
+			if err != nil {
+				return nil, err
 			}
-
-			neg := false
-			if cr.C == '-' {
-				cr.Next()
-				neg = true
-			}
-
-			// Read the numeric part of the amount
-			// This is probably shitty, and maybe wrong, but I hope not. I 1000% need to write tests for this.
-			whole := int64(0)
-			part := int64(0)
-			cur := &whole
-			null := true
-			for cr.MatchNumeric() || cr.C == '.' || cr.C == ',' {
-				if cr.C == '.' {
-					if cur == &part || null == true {
-						return nil, ErrBadAmount(cr.L)
-					}
-					cr.Next()
-					cur = &part
-					continue
-				}
-				if cr.C == ',' {
-					cr.Next()
-					continue
-				}
-
-				*cur = *cur*10 + int64(cr.C-'0')
-				null = false
-				cr.Next()
-				if cr.EOF {
-					return nil, ErrUnexpectedEnd(cr.L)
-				}
-			}
-			if !null {
-				whole = whole * 10000
-				if part > 9999 {
-					return nil, ErrBadAmount(cr.L)
-				}
-				switch {
-				case part < 9:
-					part = part * 1000
-				case part < 99:
-					part = part * 100
-				case part < 9999:
-					part = part * 10
-				}
-				post.Value = whole + part
-				if neg {
-					post.Value = -post.Value
-				}
-			}
-			post.Null = null
 
 			cr.Eat(" \t")
 			if cr.EOF {
 				return nil, ErrUnexpectedEnd(cr.L)
+			}
+
+			// Parse balance assertion.
+			if cr.C == '=' {
+				l := cr.L
+
+				cr.Next()
+
+				cr.Eat(" \t")
+				if cr.EOF {
+					return nil, ErrUnexpectedEnd(cr.L)
+				}
+
+				post.HasAssert = true
+				null := false
+				post.Assert, null, err = ReadAmount(cr)
+				if err != nil {
+					return nil, err
+				}
+				if null {
+					return nil, ErrMalformed(l)
+				}
+
+				cr.Eat(" \t")
+				if cr.EOF {
+					return nil, ErrUnexpectedEnd(cr.L)
+				}
 			}
 
 			// Optional note
@@ -489,6 +457,72 @@ func ParseLedger(cr *lex.CharReader) (*ledger.File, error) {
 	}
 
 	return &ledger.File{T: transactions, D: directives}, nil
+}
+
+func ReadAmount(cr *lex.CharReader) (v int64, null bool, err error) {
+	// Read the amount. Currently only supporting USD with or without the leading $
+	if cr.C == '$' {
+		cr.Next()
+
+		// Just in case...
+		cr.Eat(" \t")
+		if cr.EOF {
+			return 0, false, ErrUnexpectedEnd(cr.L)
+		}
+	}
+
+	neg := false
+	if cr.C == '-' {
+		cr.Next()
+		neg = true
+	}
+
+	// Read the numeric part of the amount
+	// This is probably shitty, and maybe wrong, but I hope not. I 1000% need to write tests for this.
+	whole := int64(0)
+	part := int64(0)
+	cur := &whole
+	null = true
+	for cr.MatchNumeric() || cr.C == '.' || cr.C == ',' {
+		if cr.C == '.' {
+			if cur == &part || null == true {
+				return 0, false, ErrBadAmount(cr.L)
+			}
+			cr.Next()
+			cur = &part
+			continue
+		}
+		if cr.C == ',' {
+			cr.Next()
+			continue
+		}
+
+		*cur = *cur*10 + int64(cr.C-'0')
+		null = false
+		cr.Next()
+		if cr.EOF {
+			return 0, false, ErrUnexpectedEnd(cr.L)
+		}
+	}
+	if !null {
+		whole = whole * 10000
+		if part > 9999 {
+			return 0, false, ErrBadAmount(cr.L)
+		}
+		switch {
+		case part < 9:
+			part = part * 1000
+		case part < 99:
+			part = part * 100
+		case part < 9999:
+			part = part * 10
+		}
+		v = whole + part
+		if neg {
+			v = -v
+		}
+	}
+	return v, null, nil
 }
 
 // ReadUntilTrimmed reads characters from the CharReader until one of the characters in `chars` is found.

@@ -38,7 +38,7 @@ account Expenses:Food
 	; :Tag1:Tag2:
 	; Key: Value
     Expenses:Food       $20.00
-    Assets:C a s h             ; Poor wallet :(
+    Assets:C a s h             = $5.25 ; Poor wallet :(
 `
 
 // This is a simple sanity check that makes sure the base features are functional under normal conditions.
@@ -106,6 +106,12 @@ func TestBasicFunction(t *testing.T) {
 	if tr.Postings[0].Null {
 		t.Errorf("Posting 0 incorrectly marked null.")
 	}
+	if tr.Postings[0].HasAssert {
+		t.Errorf("Posting 0 incorrectly marked as containing an assertion.")
+	}
+	if tr.Postings[0].Assert != 0 {
+		t.Errorf("Posting 0 has invalid assertion amount: %v", tr.Postings[1].Assert)
+	}
 
 	if tr.Postings[1].Account != "Assets:C a s h" {
 		t.Errorf("Incorrect posting 1 account: %v", tr.Postings[1].Account)
@@ -121,6 +127,12 @@ func TestBasicFunction(t *testing.T) {
 	}
 	if !tr.Postings[1].Null {
 		t.Errorf("Posting 1 incorrectly marked not null.")
+	}
+	if !tr.Postings[1].HasAssert {
+		t.Errorf("Posting 1 incorrectly marked as not containing an assertion.")
+	}
+	if tr.Postings[1].Assert != 52500 {
+		t.Errorf("Posting 1 has invalid assertion amount: %v", tr.Postings[1].Assert)
 	}
 
 	if len(tr.Comments) != 1 {

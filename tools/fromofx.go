@@ -31,6 +31,11 @@ import (
 
 var defaultAccount string = "Unknown:Account"
 
+// FromOFX pulls transaction data from an OFX file and converts it to a File. On error os.Exit is called and
+// the error is logged to standard error.
+//
+// This function makes a lot of assumptions about the structure of the input OFX file, and will error out if
+// they are not met.
 func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *ledger.File {
 	// Load OFX file
 	ofxd := HandleErrV(ofxgo.ParseResponse(file))

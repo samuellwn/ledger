@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/milochristiansen/ledger/parse/lex"
@@ -192,4 +193,60 @@ func (f *File) Matched(account string, matchers []Matcher) []Transaction {
 		}
 	}
 	return outTrs
+}
+
+// ParseMatchers parses matchers from the directives of this ledger file.
+func (f *File) ParseMatchers() ([]Matcher, error) {
+	accounts, err := f.Accounts()
+	if err != nil {
+		return nil, err
+	}
+
+	payees, err := f.Payees()
+	if err != nil {
+		return nil, err
+	}
+
+	matchers := []Matcher{}
+
+	// fill matcher slice
+	for _, acct := range accounts {
+		account := acct.Name
+
+		pm := []Matcher{}
+		for _, reStr := range acct.Payees {
+			re, err := regexp.Compile(reStr)
+			if err != nil {
+				return nil, err
+			}
+
+			pm = append(pm, Matcher{
+				Account: account,
+				R:       re,
+			})
+		}
+
+		for _, payee := range payees {
+			for _, m := range pm {
+				if m.R.MatchString(payee.Name) {
+					for _, alias := range payee.Aliases {
+						re, err := regexp.Compile(alias)
+						if err != nil {
+							return nil, err
+						}
+
+						matchers = append(matchers, Matcher{
+							Account: account,
+							Payee:   payee.Name,
+							R:       re,
+						})
+					}
+				}
+			}
+		}
+
+		matchers = append(matchers, pm...)
+	}
+
+	return matchers, nil
 }

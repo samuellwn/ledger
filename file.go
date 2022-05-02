@@ -187,8 +187,7 @@ func (f *File) Matched(account string, matchers []Matcher) []Transaction {
 	for _, ftr := range f.T {
 		tr := *ftr.CleanCopy()
 		if tr.Match(account, matchers) {
-			rid := GenID()
-			tr.KVPairs["RID"] = rid
+			tr.KVPairs["RID"] = <-IDService
 			outTrs = append(outTrs, tr)
 		}
 	}

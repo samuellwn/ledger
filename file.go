@@ -73,6 +73,7 @@ func (f *File) Format(w io.Writer) error {
 	return nil
 }
 
+// ErrMalformedAccountName is returned by File.Accounts if an account name is malformed.
 type ErrMalformedAccountName struct {
 	Name     string
 	Location lex.Location
@@ -98,7 +99,7 @@ func (f *File) Accounts() ([]Account, error) {
 			DirectiveIndex: dIx,
 		}
 
-		// filter out some things that cause funny behovior
+		// filter out some things that cause funny behavior
 		if strings.Contains(acct.Name, "  ") || strings.ContainsAny(acct.Name, ";\t") {
 			return nil, ErrMalformedAccountName{acct.Name, acct.Location}
 		}
@@ -109,7 +110,7 @@ func (f *File) Accounts() ([]Account, error) {
 				acct.Default = true
 			} else if strings.HasPrefix(sd, "alias") {
 				alias := strings.TrimSpace(sd[len("alias"):])
-				// filter out some things that cause funny behovior
+				// filter out some things that cause funny behavior
 				if strings.Contains(alias, "  ") || strings.ContainsAny(alias, ";\t") {
 					return nil, ErrMalformedAccountName{
 						Name:     alias,

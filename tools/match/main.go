@@ -39,7 +39,7 @@ func main() {
 
 	src := tools.LoadLedgerFile(fs.SourceFile)
 
-	matchers := tools.HandleErrV(tools.LoadLedgerFile(fs.MatchFile).ParseMatchers())
+	matchers := tools.LoadMatchFile(fs.MatchFile)
 
 	dst := &ledger.File{D: nil, T: src.Matched(fs.AccountName, matchers)}
 

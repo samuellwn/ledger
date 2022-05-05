@@ -1,5 +1,5 @@
 account Milo
-	payee AUTO\. FUNDS TRANSFER TO:.*MILO
+	payee TO:\s+XXXXXXXXX\s+MILO
 
 account Bob
 	payee Bob
@@ -9,7 +9,7 @@ account Jim
 	payee James
 
 payee Bob
-	alias AUTO\. FUNDS TRANSFER TO:.*BOB
+	alias TO:\s+XXXXXXXXX\s+BOB
 
 payee James
-	alias AUTO\. FUNDS TRANSFER TO:.*JIM
+	alias TO:\s+XXXXXXXXX\s+JIM

@@ -52,15 +52,16 @@ func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *led
 		v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
 
 		tr := ledger.Transaction{
-			Description: string(str.Memo),
+			Description: string(str.Name),
 			Date:        str.DtPosted.Time,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{
-				"ID":       <-ledger.IDService,
-				"RID":      <-ledger.IDService,
-				"FITID":    string(str.FiTID),
-				"TrnTyp":   str.TrnType.String(),
-				"FullDesc": string(str.Memo),
+				"ID":     <-ledger.IDService,
+				"RID":    <-ledger.IDService,
+				"FITID":  string(str.FiTID),
+				"TrnTyp": str.TrnType.String(),
+				"Memo":   string(str.Memo),
+				"Name":   string(str.Name),
 			},
 			Postings: []ledger.Posting{
 				{

@@ -326,8 +326,9 @@ func (p *Posting) String() string {
 	// TODO: It would be nice to align on the decimal point instead of the first
 	// digit, although that would be a lot harder.
 	if !p.Null {
-		fmt.Fprintf(buf, "%-50s", p.Account)
+		fmt.Fprintf(buf, "%-48s", p.Account)
 
+		buf.WriteString("  ") // Ensure there are always at least two spaces between account and value.
 		if p.Value >= 0 {
 			buf.WriteString(" ")
 		}

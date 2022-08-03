@@ -323,17 +323,27 @@ func (p *Posting) String() string {
 		//buf.WriteString("  ")
 	}
 
-	// TODO: It would be nice to align on the decimal point instead of the first
-	// digit, although that would be a lot harder.
 	if !p.Null {
-		fmt.Fprintf(buf, "%-48s", p.Account)
+		// In order to align on the decimal point instead of the first digit, we need to figure out how much value is
+		// before the decimal point so we can reduce the account padding to match.
+		value := FormatValue(p.Value)
 
-		buf.WriteString("  ") // Ensure there are always at least two spaces between account and value.
-		if p.Value >= 0 {
-			buf.WriteString(" ")
+		// Measure forward offset
+		prefixlen := strings.Index(value, ".")
+		if prefixlen == -1 {
+			prefixlen = len(value)
 		}
 
-		buf.WriteString(FormatValue(p.Value))
+		// Calculate padding
+		pad := 62 - prefixlen
+		if pad < 0 {
+			pad = 0
+		}
+
+		// We write the account name, pad it out taking into account the length of the value (align at the decimal
+		// point), add an extra two spaces so we don't need to write a bunch of logic for pathologically long account
+		// names, and then write the value.
+		fmt.Fprintf(buf, "%-*s  %s", pad, p.Account, value)
 	} else {
 		buf.WriteString(p.Account)
 	}

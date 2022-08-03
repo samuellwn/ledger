@@ -5,13 +5,13 @@ Testing playground file.
 */
 package main
 
-import "fmt"
+import "os"
 
-import "github.com/milochristiansen/ledger"
+//import "github.com/milochristiansen/ledger"
 import "github.com/milochristiansen/ledger/parse"
 
 func main() {
-	transactions, err := parse.ParseLedger(`
+	transactions, err := parse.ParseLedger(parse.NewCharReader(`
 2021/09/25 * Youtube Premium
     Expenses:Entertainment:Youtube Premium     $19.15
     Liabilities:CreditCard:Discover
@@ -56,19 +56,10 @@ func main() {
 2021/10/09 * Work Email
     Expenses:Work Email                        $6.38
     Liabilities:CreditCard:Discover
-`)
+`, 15))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(transactions)
-
-	accounts, err := ledger.SumTransactions(transactions)
-	if err != nil {
-		panic(err)
-	}
-	lines := ledger.FormatSums(accounts, "    ")
-	for _, line := range lines {
-		fmt.Printf("%-50s%v\n", line[0], line[1])
-	}
+	transactions.Format(os.Stdout)
 }

@@ -344,13 +344,17 @@ func (p *Posting) String() string {
 		// point), add an extra two spaces so we don't need to write a bunch of logic for pathologically long account
 		// names, and then write the value.
 		fmt.Fprintf(buf, "%-*s  %s", pad, p.Account, value)
-	} else {
-		buf.WriteString(p.Account)
-	}
 
-	if p.HasAssert {
-		buf.WriteString(" = ")
-		buf.WriteString(FormatValue(p.Assert))
+		if p.HasAssert {
+			buf.WriteString(" = ")
+			buf.WriteString(FormatValue(p.Assert))
+		}
+	} else {
+		if p.HasAssert {
+			fmt.Fprintf(buf, "%-62s      = %s", p.Account, FormatValue(p.Assert))
+		} else {
+			buf.WriteString(p.Account)
+		}
 	}
 
 	if p.Note != "" {

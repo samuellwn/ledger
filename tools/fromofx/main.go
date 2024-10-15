@@ -23,6 +23,7 @@ misrepresented as being the original software.
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/milochristiansen/ledger"
@@ -31,6 +32,20 @@ import (
 
 func main() {
 	fs := tools.CommonFlagSet(tools.FlagDestFile|tools.FlagSourceFile|tools.FlagAccountName|tools.FlagMatchFile, usage)
+	var descSrc tools.OFXDescSrc
+	fs.Flags.Func("desc", "Where to get the `description` from. \"name\", \"memo\", or \"name+memo\". (default \"name\")", func(s string) error {
+		switch s {
+		case "name":
+			descSrc = tools.OFXDescName
+		case "memo":
+			descSrc = tools.OFXDescMemo
+		case "name+memo":
+			descSrc = tools.OFXDescNameMemo
+		default:
+			return fmt.Errorf("Unknown description source: %q", s)
+		}
+		return nil
+	})
 	fs.Parse()
 
 	fr := tools.HandleErrV(os.Open(fs.SourceFile))
@@ -41,7 +56,7 @@ func main() {
 	}
 
 	// Load OFX file
-	f := tools.FromOFX(fr, fs.AccountName, matchers)
+	f := tools.FromOFX(fr, fs.AccountName, descSrc, matchers)
 
 	tools.WriteLedgerFile(fs.DestFile, f)
 }

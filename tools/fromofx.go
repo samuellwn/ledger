@@ -31,12 +31,20 @@ import (
 
 var defaultAccount string = "Unknown:Account"
 
+type OFXDescSrc int
+
+const (
+	OFXDescName OFXDescSrc = iota
+	OFXDescMemo
+	OFXDescNameMemo
+)
+
 // FromOFX pulls transaction data from an OFX file and converts it to a File. On error os.Exit is called and
 // the error is logged to standard error.
 //
 // This function makes a lot of assumptions about the structure of the input OFX file, and will error out if
 // they are not met.
-func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *ledger.File {
+func FromOFX(file io.Reader, mainAccount string, descSrc OFXDescSrc, matchers []ledger.Matcher) *ledger.File {
 	// Load OFX file
 	ofxd := HandleErrV(ofxgo.ParseResponse(file))
 
@@ -51,8 +59,18 @@ func FromOFX(file io.Reader, mainAccount string, matchers []ledger.Matcher) *led
 	for _, str := range b.BankTranList.Transactions {
 		v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
 
+		desc := ""
+		switch descSrc {
+		case OFXDescName:
+			desc = string(str.Name)
+		case OFXDescMemo:
+			desc = string(str.Memo)
+		case OFXDescNameMemo: // because some banks output braindead OFX files
+			desc = string(str.Name + str.Memo)
+		}
+
 		tr := ledger.Transaction{
-			Description: string(str.Name),
+			Description: desc,
 			Date:        str.DtPosted.Time,
 			Status:      ledger.StatusClear,
 			KVPairs: map[string]string{

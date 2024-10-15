@@ -1,4 +1,4 @@
-module github.com/milochristiansen/ledger
+module github.com/samuellwn/ledger
 
 go 1.18
 

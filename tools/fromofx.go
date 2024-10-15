@@ -45,6 +45,14 @@ const (
 // This function makes a lot of assumptions about the structure of the input OFX file, and will error out if
 // they are not met.
 func FromOFX(file io.Reader, mainAccount string, descSrc OFXDescSrc, matchers []ledger.Matcher) *ledger.File {
+	journal := &ledger.File{T: []ledger.Transaction{}, D: nil}
+
+	MergeOFX(journal, file, mainAccount, descSrc, matchers)
+
+	return journal
+}
+
+func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc OFXDescSrc, matchers []ledger.Matcher) {
 	// Load OFX file
 	ofxd := HandleErrV(ofxgo.ParseResponse(file))
 
@@ -55,9 +63,25 @@ func FromOFX(file io.Reader, mainAccount string, descSrc OFXDescSrc, matchers []
 	HandleErrS(!ok, "Unexpected response type.")
 	HandleErrS(len(b.BankTranList.Transactions) == 0, "No transactions.")
 
-	trs := []ledger.Transaction{}
+	// Load set of seen transaction ids from ofx
+	seenIds := map[string]bool{}
+	for _, tr := range journal.T {
+		if tr.KVPairs["FITID"] == "" {
+			continue
+		}
+		for _, p := range tr.Postings {
+			if p.Account == mainAccount {
+				seenIds[tr.KVPairs["FITID"]] = true
+			}
+		}
+	}
+
 	for _, str := range b.BankTranList.Transactions {
 		v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
+
+		if seenIds[string(str.FiTID)] {
+			continue
+		}
 
 		desc := ""
 		switch descSrc {
@@ -95,7 +119,6 @@ func FromOFX(file io.Reader, mainAccount string, descSrc OFXDescSrc, matchers []
 
 		tr.Match(defaultAccount, matchers)
 
-		trs = append(trs, tr)
+		journal.T = append(journal.T, tr)
 	}
-	return &ledger.File{T: trs, D: nil}
 }

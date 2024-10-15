@@ -7,8 +7,8 @@ package main
 
 import "os"
 
-//import "github.com/milochristiansen/ledger"
-import "github.com/milochristiansen/ledger/parse"
+//import "github.com/samuellwn/ledger"
+import "github.com/samuellwn/ledger/parse"
 
 func main() {
 	transactions, err := parse.ParseLedger(parse.NewCharReader(`

@@ -25,7 +25,7 @@ package tools
 import (
 	"errors"
 
-	"github.com/milochristiansen/ledger"
+	"github.com/samuellwn/ledger"
 )
 
 // Zipper takes two ledger flies and zips them together in a deterministic manner. On error os.Exit is called and

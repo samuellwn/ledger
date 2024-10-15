@@ -25,7 +25,7 @@ package parse
 import (
 	"fmt"
 
-	"github.com/milochristiansen/ledger/parse/lex"
+	"github.com/samuellwn/ledger/parse/lex"
 )
 
 // ErrBadDate is returned by the parser when it attempts to consume a invalid date.

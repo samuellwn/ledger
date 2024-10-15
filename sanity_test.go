@@ -25,8 +25,8 @@ package ledger_test
 import (
 	"testing"
 
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/parse"
 )
 
 var TestBasicFunctionInput = `

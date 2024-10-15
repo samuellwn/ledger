@@ -44,7 +44,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/milochristiansen/ledger/parse/lex"
+	"github.com/samuellwn/ledger/parse/lex"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )

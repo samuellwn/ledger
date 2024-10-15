@@ -25,7 +25,7 @@ package ledger
 import (
 	"bytes"
 
-	"github.com/milochristiansen/ledger/parse/lex"
+	"github.com/samuellwn/ledger/parse/lex"
 )
 
 // Directive is a simple type to represent a partially parsed, but not validated, command directive.

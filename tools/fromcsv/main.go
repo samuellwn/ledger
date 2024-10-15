@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/milochristiansen/ledger"
+	"github.com/samuellwn/ledger"
 )
 
 var usage string = `Usage: fromcsv [-o <dest>]|[-output <dest>] options... <src>

@@ -30,9 +30,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
-	"github.com/milochristiansen/ledger/tools"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/parse"
+	"github.com/samuellwn/ledger/tools"
 )
 
 func main() {

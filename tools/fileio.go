@@ -29,8 +29,8 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/parse"
 )
 
 // LoadLedgerFile loads a ledger file from the given path. On any error the message is logged to standard error and the

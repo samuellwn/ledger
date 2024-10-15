@@ -23,7 +23,7 @@ misrepresented as being the original software.
 package main
 
 import (
-	"github.com/milochristiansen/ledger/tools"
+	"github.com/samuellwn/ledger/tools"
 )
 
 func main() {

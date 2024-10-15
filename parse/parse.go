@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse/lex"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/parse/lex"
 )
 
 /*

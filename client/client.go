@@ -33,8 +33,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/parse"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/parse"
 	"github.com/teris-io/shortid"
 )
 

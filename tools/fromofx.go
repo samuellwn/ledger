@@ -26,7 +26,7 @@ import (
 	"io"
 
 	"github.com/aclindsa/ofxgo"
-	"github.com/milochristiansen/ledger"
+	"github.com/samuellwn/ledger"
 )
 
 var defaultAccount string = "Unknown:Account"

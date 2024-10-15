@@ -23,8 +23,8 @@ misrepresented as being the original software.
 package main
 
 import (
-	"github.com/milochristiansen/ledger"
-	"github.com/milochristiansen/ledger/tools"
+	"github.com/samuellwn/ledger"
+	"github.com/samuellwn/ledger/tools"
 )
 
 var usage string = `Usage:

@@ -30,7 +30,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/milochristiansen/ledger/parse/lex"
+	"github.com/samuellwn/ledger/parse/lex"
 )
 
 // File hold a parsed ledger file stored as lists of Directives and Transactions.

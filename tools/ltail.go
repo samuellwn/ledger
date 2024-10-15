@@ -22,7 +22,7 @@ misrepresented as being the original software.
 
 package tools
 
-import "github.com/milochristiansen/ledger"
+import "github.com/samuellwn/ledger"
 
 // LTail tails a ledger file based on a ID and RID. There are no error cases (if the ID doesn't exist you just get an empty file)
 func LTail(f *ledger.File, id, rid string) *ledger.File {

@@ -22,7 +22,7 @@ misrepresented as being the original software.
 
 package main
 
-import "github.com/milochristiansen/ledger/tools"
+import "github.com/samuellwn/ledger/tools"
 
 func main() {
 	fs := tools.CommonFlagSet(tools.FlagDestFile|tools.FlagSourceFile, usage)

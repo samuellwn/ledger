@@ -57,11 +57,7 @@ func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc 
 	ofxd := HandleErrV(ofxgo.ParseResponse(file))
 
 	// Convert it to ledger transactions
-	HandleErrS(len(ofxd.Bank) != 1, "More banks than expected.")
-
-	b, ok := ofxd.Bank[0].(*ofxgo.StatementResponse)
-	HandleErrS(!ok, "Unexpected response type.")
-	HandleErrS(len(b.BankTranList.Transactions) == 0, "No transactions.")
+	HandleErrS(len(ofxd.Bank) == 0 && len(ofxd.CreditCard) == 0, "No banks or credit cards.")
 
 	// Load set of seen transaction ids from ofx
 	seenIds := map[string]bool{}
@@ -76,49 +72,60 @@ func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc 
 		}
 	}
 
-	for _, str := range b.BankTranList.Transactions {
-		v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
-
-		if seenIds[string(str.FiTID)] {
-			continue
+	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
+		var trns []ofxgo.Transaction
+		if b, ok := msg.(*ofxgo.StatementResponse); ok {
+			trns = b.BankTranList.Transactions
+		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
+			trns = cc.BankTranList.Transactions
+		} else {
+			HandleErrS(true, "Unexpected response type.")
 		}
+		HandleErrS(len(trns) == 0, "No transactions.")
+		for _, str := range trns {
+			v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
 
-		desc := ""
-		switch descSrc {
-		case OFXDescName:
-			desc = string(str.Name)
-		case OFXDescMemo:
-			desc = string(str.Memo)
-		case OFXDescNameMemo: // because some banks output braindead OFX files
-			desc = string(str.Name + str.Memo)
-		}
+			if seenIds[string(str.FiTID)] {
+				continue
+			}
 
-		tr := ledger.Transaction{
-			Description: desc,
-			Date:        str.DtPosted.Time,
-			Status:      ledger.StatusClear,
-			KVPairs: map[string]string{
-				"ID":     <-ledger.IDService,
-				"RID":    <-ledger.IDService,
-				"FITID":  string(str.FiTID),
-				"TrnTyp": str.TrnType.String(),
-				"Memo":   string(str.Memo),
-				"Name":   string(str.Name),
-			},
-			Postings: []ledger.Posting{
-				{
-					Account: mainAccount,
-					Value:   v,
+			desc := ""
+			switch descSrc {
+			case OFXDescName:
+				desc = string(str.Name)
+			case OFXDescMemo:
+				desc = string(str.Memo)
+			case OFXDescNameMemo: // because some banks output braindead OFX files
+				desc = string(str.Name + str.Memo)
+			}
+
+			tr := ledger.Transaction{
+				Description: desc,
+				Date:        str.DtPosted.Time,
+				Status:      ledger.StatusClear,
+				KVPairs: map[string]string{
+					"ID":     <-ledger.IDService,
+					"RID":    <-ledger.IDService,
+					"FITID":  string(str.FiTID),
+					"TrnTyp": str.TrnType.String(),
+					"Memo":   string(str.Memo),
+					"Name":   string(str.Name),
 				},
-				{
-					Account: defaultAccount,
-					Null:    true,
+				Postings: []ledger.Posting{
+					{
+						Account: mainAccount,
+						Value:   v,
+					},
+					{
+						Account: defaultAccount,
+						Null:    true,
+					},
 				},
-			},
+			}
+
+			tr.Match(defaultAccount, matchers)
+
+			journal.T = append(journal.T, tr)
 		}
-
-		tr.Match(defaultAccount, matchers)
-
-		journal.T = append(journal.T, tr)
 	}
 }

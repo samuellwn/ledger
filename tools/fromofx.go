@@ -81,7 +81,7 @@ func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc 
 		} else {
 			HandleErrS(true, "Unexpected response type.")
 		}
-		HandleErrS(len(trns) == 0, "No transactions.")
+
 		for _, str := range trns {
 			v := HandleErrV(ledger.ParseValueNumber(str.TrnAmt.String()))
 
@@ -127,5 +127,37 @@ func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc 
 
 			journal.T = append(journal.T, tr)
 		}
+	}
+
+	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
+		var bal ofxgo.Amount
+		var asOf ofxgo.Date
+		if b, ok := msg.(*ofxgo.StatementResponse); ok {
+			bal = b.BalAmt
+			asOf = b.DtAsOf
+		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
+			bal = cc.BalAmt
+			asOf = cc.DtAsOf
+		} else {
+			HandleErrS(true, "Unexpected response type.")
+		}
+
+		tr := ledger.Transaction{
+			Description: "Statement Ending Balance",
+			Date:        asOf.Time,
+			Status:      ledger.StatusUndefined,
+			KVPairs: map[string]string{
+				"ID":  <-ledger.IDService,
+				"RID": <-ledger.IDService,
+			},
+			Postings: []ledger.Posting{{
+				Account:   mainAccount,
+				Value:     0,
+				Assert:    HandleErrV(ledger.ParseValueNumber(bal.String())),
+				HasAssert: true,
+			}},
+		}
+
+		journal.T = append(journal.T, tr)
 	}
 }

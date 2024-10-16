@@ -32,15 +32,15 @@ import (
 
 func main() {
 	fs := tools.CommonFlagSet(tools.FlagMasterFile|tools.FlagSourceFile|tools.FlagAccountName|tools.FlagMatchFile, usage)
-	var descSrc tools.OFXDescSrc
+	var descSrc ledger.OFXDescSrc
 	fs.Flags.Func("desc", "Where to get the `description` from. \"name\", \"memo\", or \"name+memo\". (default \"name\")", func(s string) error {
 		switch s {
 		case "name":
-			descSrc = tools.OFXDescName
+			descSrc = ledger.OFXDescName
 		case "memo":
-			descSrc = tools.OFXDescMemo
+			descSrc = ledger.OFXDescMemo
 		case "name+memo":
-			descSrc = tools.OFXDescNameMemo
+			descSrc = ledger.OFXDescNameMemo
 		default:
 			return fmt.Errorf("Unknown description source: %q", s)
 		}

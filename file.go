@@ -30,6 +30,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aclindsa/ofxgo"
 	"github.com/samuellwn/ledger/parse/lex"
 )
 
@@ -257,6 +258,148 @@ func (f *File) ParseMatchers() ([]Matcher, error) {
 	}
 
 	return matchers, nil
+}
+
+type OFXDescSrc int
+
+const (
+	OFXDescName OFXDescSrc = iota
+	OFXDescMemo
+	OFXDescNameMemo
+)
+
+// ImportOFX imports the OFX response/file into this file. Already imported transactions will be skipped.
+func (f *File) ImportOFX(ofxFile io.Reader, descSrc OFXDescSrc, bankAcct, defaultAcct, mismatchAcct string) error {
+	// Load OFX file
+	ofxd, err := ofxgo.ParseResponse(ofxFile)
+	if err != nil {
+		return err
+	}
+
+	// Load set of seen transaction ids from ofx
+	seenIds := map[string]bool{}
+	for _, tr := range f.T {
+		if tr.KVPairs["FITID"] == "" || tr.KVPairs["Account"] != bankAcct {
+			continue
+		}
+		seenIds[tr.KVPairs["FITID"]] = true
+	}
+
+	// Convert it to ledger transactions
+	if len(ofxd.Bank) == 0 && len(ofxd.CreditCard) == 0 {
+		return errors.New("No banks or credit cards.")
+	}
+
+	ltrns := []Transaction{}
+	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
+		var trns []ofxgo.Transaction
+		if b, ok := msg.(*ofxgo.StatementResponse); ok {
+			trns = b.BankTranList.Transactions
+		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
+			trns = cc.BankTranList.Transactions
+		} else {
+			return errors.New("Unexpected response type.")
+		}
+
+		for _, str := range trns {
+			v, err := ParseValueNumber(str.TrnAmt.String())
+			if err != nil {
+				return err
+			}
+
+			desc := ""
+			switch descSrc {
+			case OFXDescName:
+				desc = string(str.Name)
+			case OFXDescMemo:
+				desc = string(str.Memo)
+			case OFXDescNameMemo: // because some banks output braindead OFX files
+				desc = string(str.Name + str.Memo)
+			}
+
+			tr := Transaction{
+				Description: desc,
+				Date:        str.DtPosted.Time,
+				Status:      StatusUndefined,
+				KVPairs: map[string]string{
+					"ID":      <-IDService,
+					"RID":     <-IDService,
+					"FITID":   string(str.FiTID),
+					"TrnTyp":  str.TrnType.String(),
+					"Memo":    string(str.Memo),
+					"Name":    string(str.Name),
+					"Account": bankAcct,
+				},
+				Postings: []Posting{
+					{
+						Account: bankAcct,
+						Value:   v,
+					},
+					{
+						Account: defaultAcct,
+						Null:    true,
+					},
+				},
+			}
+
+			ltrns = append(ltrns, tr)
+		}
+	}
+
+	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
+		var bal ofxgo.Amount
+		var asOf ofxgo.Date
+		if b, ok := msg.(*ofxgo.StatementResponse); ok {
+			bal = b.BalAmt
+			asOf = b.DtAsOf
+		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
+			bal = cc.BalAmt
+			asOf = cc.DtAsOf
+		} else {
+			return errors.New("Unexpected response type.")
+		}
+
+		v, err := ParseValueNumber(bal.String())
+		if err != nil {
+			return err
+		}
+
+		var postings []Posting
+		if len(mismatchAcct) == 0 {
+			postings = []Posting{{
+				Account:   bankAcct,
+				Value:     0,
+				Assert:    v,
+				HasAssert: true,
+			}}
+		} else {
+			postings = []Posting{{
+				Account:   bankAcct,
+				Null:      true,
+				Assert:    v,
+				HasAssert: true,
+			}, {
+				Account: mismatchAcct,
+				Null:    true,
+			}}
+		}
+		tr := Transaction{
+			Description: "Statement Ending Balance",
+			Date:        asOf.Time,
+			Status:      StatusUndefined,
+			KVPairs: map[string]string{
+				"ID":            <-IDService,
+				"RID":           <-IDService,
+				"EndingBalance": bankAcct,
+			},
+			Postings: postings,
+		}
+
+		ltrns = append(ltrns, tr)
+	}
+
+	f.T = append(f.T, ltrns...)
+	return nil
 }
 
 // CleanCopy takes a perfect copy of the file object. Any edits to the returned File

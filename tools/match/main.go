@@ -23,25 +23,23 @@ misrepresented as being the original software.
 package main
 
 import (
-	"github.com/samuellwn/ledger"
 	"github.com/samuellwn/ledger/tools"
 )
 
 var usage string = `Usage:
 
-Replace accounts in postings using rules from a matcher file. Only matched transactions will
-be output.
+Replace accounts in postings using rules from a matcher file.
 `
 
 func main() {
-	fs := tools.CommonFlagSet(tools.FlagSourceFile|tools.FlagDestFile|tools.FlagMatchFile|tools.FlagAccountName, usage)
+	fs := tools.CommonFlagSet(tools.FlagMasterFile|tools.FlagMatchFile|tools.FlagAccountName, usage)
 	fs.Parse()
 
-	src := tools.LoadLedgerFile(fs.SourceFile)
+	f := tools.LoadLedgerFile(fs.MasterFile)
 
 	matchers := tools.LoadMatchFile(fs.MatchFile)
 
-	dst := &ledger.File{D: nil, T: src.Matched(fs.AccountName, matchers)}
+	f.T = append(f.T, f.Matched(fs.AccountName, matchers)...)
 
-	tools.WriteLedgerFile(fs.DestFile, dst)
+	tools.WriteLedgerFile(fs.MasterFile, f)
 }

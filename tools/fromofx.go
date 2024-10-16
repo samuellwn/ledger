@@ -102,7 +102,7 @@ func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc 
 			tr := ledger.Transaction{
 				Description: desc,
 				Date:        str.DtPosted.Time,
-				Status:      ledger.StatusClear,
+				Status:      ledger.StatusUndefined,
 				KVPairs: map[string]string{
 					"ID":     <-ledger.IDService,
 					"RID":    <-ledger.IDService,

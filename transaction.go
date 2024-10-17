@@ -402,6 +402,9 @@ func formatHelper(v int64) (ms, ls1, ls2 int64) {
 	if ls > 99 {
 		ls = 0
 		ms++
+	} else if ls < 0 {
+		ls = 0
+		ms--
 	}
 
 	ls1 = ls / 10

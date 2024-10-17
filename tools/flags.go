@@ -86,7 +86,7 @@ func CommonFlagSet(flags int, usage string) *FlagSet {
 	}
 
 	if flags&FlagMatchFile != 0 {
-		fs.Flags.Func("source", "Path to the match information `csv` file.", func(s string) (err error) {
+		fs.Flags.Func("match", "Path to the match information `csv` file.", func(s string) (err error) {
 			if s != "-" {
 				fs.MatchFile, err = os.Open(s)
 			} else {

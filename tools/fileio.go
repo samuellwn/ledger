@@ -44,7 +44,7 @@ func LoadLedgerFile(f *os.File) *ledger.File {
 // WriteLedgerFile writes out a ledger file to the given path. On any error the message is logged to standard error
 // and the program exits with code 1.
 func WriteLedgerFile(f *os.File, d *ledger.File) {
-	HandleErr(f.Truncate(0))
+	_ = f.Truncate(0) // sometimes this gets called on os.Stdout
 	HandleErr(d.Format(f))
 }
 

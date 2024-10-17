@@ -41,13 +41,13 @@ const (
 // FlagSet is used to store the results from the common flags. Not all of these values will be valid, even if
 // their flag is in the set.
 type FlagSet struct {
-	DestFile string
-	MasterFile string
-	SourceFile string
-	MatchFile string
+	DestFile    *os.File
+	MasterFile  *os.File
+	SourceFile  *os.File
+	MatchFile   *os.File
 	AccountName string
-	ID string
-	RID string
+	ID          string
+	RID         string
 
 	Flags *flag.FlagSet
 }
@@ -55,34 +55,56 @@ type FlagSet struct {
 // CommonFlagSet returns a flagset filled out with your choice of several common flags.
 func CommonFlagSet(flags int, usage string) *FlagSet {
 	fs := &FlagSet{
-		Flags: flag.NewFlagSet(os.Args[0], flag.ExitOnError),
+		DestFile:   os.Stdout,
+		SourceFile: os.Stdin,
+		Flags:      flag.NewFlagSet(os.Args[0], flag.ExitOnError),
 	}
 
-	if flags & FlagDestFile != 0 {
-		fs.Flags.StringVar(&fs.DestFile, "dest", "out.ledger", "The output file `path`.")
+	if flags&FlagDestFile != 0 {
+		fs.Flags.Func("dest", "The output file `path`.", func(s string) (err error) {
+			if s != "-" {
+				fs.DestFile, err = os.Create(s)
+			}
+			return
+		})
 	}
 
-	if flags & FlagMasterFile != 0 {
-		fs.Flags.StringVar(&fs.MasterFile, "master", "master.ledger", "The master ledger file `path`.")
+	if flags&FlagMasterFile != 0 {
+		fs.Flags.Func("master", "The master ledger file `path`.", func(s string) (err error) {
+			fs.MasterFile, err = os.OpenFile(s, os.O_RDWR|os.O_CREATE, 0666)
+			return
+		})
 	}
 
-	if flags & FlagSourceFile != 0 {
-		fs.Flags.StringVar(&fs.SourceFile, "source", "source.file", "The data source file `path`.")
+	if flags&FlagSourceFile != 0 {
+		fs.Flags.Func("source", "The data source file `path`.", func(s string) (err error) {
+			if s != "-" {
+				fs.SourceFile, err = os.Open(s)
+			}
+			return
+		})
 	}
 
-	if flags & FlagMatchFile != 0 {
-		fs.Flags.StringVar(&fs.MatchFile, "match", "match.csv", "Path to the match information `csv` file.")
+	if flags&FlagMatchFile != 0 {
+		fs.Flags.Func("source", "Path to the match information `csv` file.", func(s string) (err error) {
+			if s != "-" {
+				fs.MatchFile, err = os.Open(s)
+			} else {
+				fs.MatchFile = os.Stdin
+			}
+			return
+		})
 	}
 
-	if flags & FlagAccountName != 0 {
+	if flags&FlagAccountName != 0 {
 		fs.Flags.StringVar(&fs.AccountName, "account", "Example:Account", "The `account` name.")
 	}
 
-	if flags & FlagID != 0 {
+	if flags&FlagID != 0 {
 		fs.Flags.StringVar(&fs.ID, "id", "NIL", "A transaction `ID` used to specify the point in the file to act from.")
 	}
 
-	if flags & FlagRID != 0 {
+	if flags&FlagRID != 0 {
 		fs.Flags.StringVar(&fs.RID, "rid", "NIL", "A transaction revision `ID` used to specify the point in the file to act from.")
 	}
 

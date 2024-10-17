@@ -24,7 +24,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/samuellwn/ledger"
 	"github.com/samuellwn/ledger/tools"
@@ -48,16 +47,14 @@ func main() {
 	})
 	fs.Parse()
 
-	fr := tools.HandleErrV(os.Open(fs.SourceFile))
-
 	matchers := []ledger.Matcher{}
-	if fs.MatchFile != "" {
+	if fs.MatchFile != nil {
 		matchers = tools.LoadMatchFile(fs.MatchFile)
 	}
 
 	journal := tools.LoadLedgerFile(fs.MasterFile)
 
-	tools.MergeOFX(journal, fr, fs.AccountName, descSrc, matchers)
+	tools.MergeOFX(journal, fs.SourceFile, fs.AccountName, descSrc, matchers)
 
 	tools.WriteLedgerFile(fs.MasterFile, journal)
 }

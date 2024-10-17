@@ -35,10 +35,7 @@ import (
 
 // LoadLedgerFile loads a ledger file from the given path. On any error the message is logged to standard error and the
 // program exits with code 1.
-func LoadLedgerFile(path string) *ledger.File {
-	f := HandleErrV(os.Open(path))
-	defer f.Close()
-
+func LoadLedgerFile(f *os.File) *ledger.File {
 	lf, err := parse.ParseLedger(parse.NewRawCharReader(bufio.NewReader(f), 1))
 	HandleErr(err)
 	return lf
@@ -46,19 +43,14 @@ func LoadLedgerFile(path string) *ledger.File {
 
 // WriteLedgerFile writes out a ledger file to the given path. On any error the message is logged to standard error
 // and the program exits with code 1.
-func WriteLedgerFile(path string, d *ledger.File) {
-	f := HandleErrV(os.Create(path))
-	defer f.Close()
-
+func WriteLedgerFile(f *os.File, d *ledger.File) {
+	HandleErr(f.Truncate(0))
 	HandleErr(d.Format(f))
 }
 
 // LoadMatchFile loads a csv match file and parses it into a list of Matchers. On any error the message is logged to
 // standard error and the program exits with code 1.
-func LoadMatchFile(path string) []ledger.Matcher {
-	mr := HandleErrV(os.Open(path))
-	defer mr.Close()
-
+func LoadMatchFile(mr *os.File) []ledger.Matcher {
 	mrdr := csv.NewReader(mr)
 	mrdr.FieldsPerRecord = 3
 	mrdr.Comment = '#'

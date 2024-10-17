@@ -397,9 +397,12 @@ func (f *File) ImportOFX(ofxFile io.Reader, descSrc OFXDescSrc, bankAcct, defaul
 			},
 			Postings: []Posting{{
 				Account:   bankAcct,
-				Value:     0,
+				Null:      true,
 				Assert:    v,
 				HasAssert: true,
+			}, {
+				Account: equityAcct,
+				Null:    true,
 			}},
 		})
 	}

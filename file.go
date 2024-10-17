@@ -269,7 +269,7 @@ const (
 )
 
 // ImportOFX imports the OFX response/file into this file. Already imported transactions will be skipped.
-func (f *File) ImportOFX(ofxFile io.Reader, descSrc OFXDescSrc, bankAcct, defaultAcct, mismatchAcct string) error {
+func (f *File) ImportOFX(ofxFile io.Reader, descSrc OFXDescSrc, bankAcct, defaultAcct, equityAcct string) error {
 	// Load OFX file
 	ofxd, err := ofxgo.ParseResponse(ofxFile)
 	if err != nil {
@@ -286,119 +286,126 @@ func (f *File) ImportOFX(ofxFile io.Reader, descSrc OFXDescSrc, bankAcct, defaul
 	}
 
 	// Convert it to ledger transactions
-	if len(ofxd.Bank) == 0 && len(ofxd.CreditCard) == 0 {
-		return errors.New("No banks or credit cards.")
+	if len(ofxd.Bank)+len(ofxd.CreditCard) != 1 {
+		return errors.New("Too many banks or credit cards.")
 	}
 
+	bank := append(ofxd.Bank, ofxd.CreditCard...)[0]
+
+	var trns []ofxgo.Transaction
+	var bal ofxgo.Amount
+	var asOf ofxgo.Date
+	if b, ok := bank.(*ofxgo.StatementResponse); ok {
+		trns = b.BankTranList.Transactions
+		bal = b.BalAmt
+		asOf = b.DtAsOf
+	} else if cc, ok := bank.(*ofxgo.CCStatementResponse); ok {
+		trns = cc.BankTranList.Transactions
+		bal = cc.BalAmt
+		asOf = cc.DtAsOf
+	} else {
+		return errors.New("Unexpected response type.")
+	}
+
+	if len(trns) == 0 {
+		return errors.New("No transactions found.")
+	}
+
+	var sum int64
 	ltrns := []Transaction{}
-	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
-		var trns []ofxgo.Transaction
-		if b, ok := msg.(*ofxgo.StatementResponse); ok {
-			trns = b.BankTranList.Transactions
-		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
-			trns = cc.BankTranList.Transactions
-		} else {
-			return errors.New("Unexpected response type.")
-		}
-
-		for _, str := range trns {
-			v, err := ParseValueNumber(str.TrnAmt.String())
-			if err != nil {
-				return err
-			}
-
-			desc := ""
-			switch descSrc {
-			case OFXDescName:
-				desc = string(str.Name)
-			case OFXDescMemo:
-				desc = string(str.Memo)
-			case OFXDescNameMemo: // because some banks output braindead OFX files
-				desc = string(str.Name + str.Memo)
-			}
-
-			tr := Transaction{
-				Description: desc,
-				Date:        str.DtPosted.Time,
-				Status:      StatusUndefined,
-				KVPairs: map[string]string{
-					"ID":      <-IDService,
-					"RID":     <-IDService,
-					"FITID":   string(str.FiTID),
-					"TrnTyp":  str.TrnType.String(),
-					"Memo":    string(str.Memo),
-					"Name":    string(str.Name),
-					"Account": bankAcct,
-				},
-				Postings: []Posting{
-					{
-						Account: bankAcct,
-						Value:   v,
-					},
-					{
-						Account: defaultAcct,
-						Null:    true,
-					},
-				},
-			}
-
-			ltrns = append(ltrns, tr)
-		}
-	}
-
-	for _, msg := range append(ofxd.Bank, ofxd.CreditCard...) {
-		var bal ofxgo.Amount
-		var asOf ofxgo.Date
-		if b, ok := msg.(*ofxgo.StatementResponse); ok {
-			bal = b.BalAmt
-			asOf = b.DtAsOf
-		} else if cc, ok := msg.(*ofxgo.CCStatementResponse); ok {
-			bal = cc.BalAmt
-			asOf = cc.DtAsOf
-		} else {
-			return errors.New("Unexpected response type.")
-		}
-
-		v, err := ParseValueNumber(bal.String())
+	for _, str := range trns {
+		v, err := ParseValueNumber(str.TrnAmt.String())
 		if err != nil {
 			return err
 		}
 
-		var postings []Posting
-		if len(mismatchAcct) == 0 {
-			postings = []Posting{{
-				Account:   bankAcct,
-				Value:     0,
-				Assert:    v,
-				HasAssert: true,
-			}}
-		} else {
-			postings = []Posting{{
-				Account:   bankAcct,
-				Null:      true,
-				Assert:    v,
-				HasAssert: true,
-			}, {
-				Account: mismatchAcct,
-				Null:    true,
-			}}
+		sum += v
+
+		desc := ""
+		switch descSrc {
+		case OFXDescName:
+			desc = string(str.Name)
+		case OFXDescMemo:
+			desc = string(str.Memo)
+		case OFXDescNameMemo: // because some banks output braindead OFX files
+			desc = string(str.Name + str.Memo)
 		}
+
 		tr := Transaction{
-			Description: "Statement Ending Balance",
-			Date:        asOf.Time,
+			Description: desc,
+			Date:        str.DtPosted.Time,
 			Status:      StatusUndefined,
 			KVPairs: map[string]string{
-				"ID":            <-IDService,
-				"RID":           <-IDService,
-				"EndingBalance": bankAcct,
+				"ID":      <-IDService,
+				"RID":     <-IDService,
+				"FITID":   string(str.FiTID),
+				"TrnTyp":  str.TrnType.String(),
+				"Memo":    string(str.Memo),
+				"Name":    string(str.Name),
+				"Account": bankAcct,
 			},
-			Postings: postings,
+			Postings: []Posting{
+				{
+					Account: bankAcct,
+					Value:   v,
+				},
+				{
+					Account: defaultAcct,
+					Null:    true,
+				},
+			},
 		}
 
 		ltrns = append(ltrns, tr)
 	}
 
+	if equityAcct != "" {
+		v, err := ParseValueNumber(bal.String())
+		if err != nil {
+			return err
+		}
+
+		tr := Transaction{
+			Description: "Statement Opening Balance",
+			Date:        ltrns[0].Date,
+			Status:      StatusUndefined,
+			KVPairs: map[string]string{
+				"ID":             <-IDService,
+				"RID":            <-IDService,
+				"OpeningBalance": bankAcct,
+			},
+			Postings: []Posting{{
+				Account:   bankAcct,
+				Null:      true,
+				Assert:    v - sum,
+				HasAssert: true,
+			}, {
+				Account: equityAcct,
+				Null:    true,
+			}},
+		}
+		ltrns = append([]Transaction{tr}, ltrns...)
+
+		ltrns = append(ltrns, Transaction{
+			Description: "Statement Closing Balance",
+			Date:        asOf.Time,
+			Status:      StatusUndefined,
+			KVPairs: map[string]string{
+				"ID":             <-IDService,
+				"RID":            <-IDService,
+				"ClosingBalance": bankAcct,
+			},
+			Postings: []Posting{{
+				Account:   bankAcct,
+				Value:     0,
+				Assert:    v,
+				HasAssert: true,
+			}},
+		})
+	}
+
 	f.T = append(f.T, ltrns...)
+
 	return nil
 }
 

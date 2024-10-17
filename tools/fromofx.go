@@ -38,7 +38,7 @@ var defaultAccount string = "Unknown:Account"
 func FromOFX(file io.Reader, mainAccount string, descSrc ledger.OFXDescSrc, matchers []ledger.Matcher) *ledger.File {
 	journal := &ledger.File{T: []ledger.Transaction{}, D: nil}
 
-	HandleErr(journal.ImportOFX(file, descSrc, mainAccount, defaultAccount, ""))
+	HandleErr(journal.ImportOFX(file, descSrc, mainAccount, defaultAccount, "Equity:Balance Error"))
 	journal.T = append(journal.T, journal.Matched(mainAccount, matchers)...)
 	journal.StripHistory()
 
@@ -46,6 +46,6 @@ func FromOFX(file io.Reader, mainAccount string, descSrc ledger.OFXDescSrc, matc
 }
 
 func MergeOFX(journal *ledger.File, file io.Reader, mainAccount string, descSrc ledger.OFXDescSrc, matchers []ledger.Matcher) {
-	HandleErr(journal.ImportOFX(file, descSrc, mainAccount, defaultAccount, ""))
+	HandleErr(journal.ImportOFX(file, descSrc, mainAccount, defaultAccount, "Equity:Balance Error"))
 	journal.T = append(journal.T, journal.Matched(mainAccount, matchers)...)
 }
